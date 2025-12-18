@@ -35,12 +35,21 @@ class QueryType(str, Enum):
 
     TEXT = "text"
     IMAGE = "image"
+    HYBRID = "hybrid"
 
 
 class IngestMode(str, Enum):
     TEXT = "text"
     IMAGE = "image"
     HYBRID = "hybrid"
+
+
+class ValidationStatus(str, Enum):
+    """Status of file validation."""
+    
+    VALID = "valid"
+    WARNING = "warning"
+    INVALID = "invalid"
 
 
 # Request Schemas
@@ -84,6 +93,111 @@ class UpdateDatabaseRequest(BaseModel):
         if len(v) > 1 and not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9 -]*[a-zA-Z0-9]$", v):
             raise ValueError("Name must be alphanumeric with spaces/hyphens")
         return v
+
+
+class FileValidationResult(BaseModel):
+    """Result of validating a single file.
+    
+    Attributes:
+        filename: Name of the file.
+        status: Validation status (valid/warning/invalid).
+        errors: List of error messages if validation failed.
+        warnings: List of warning messages (non-blocking).
+        file_size_bytes: Size of the file in bytes.
+        mime_type: Detected MIME type.
+    """
+    
+    filename: str
+    status: ValidationStatus
+    errors: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    file_size_bytes: int
+    mime_type: str | None = None
+
+
+class BatchValidationSummary(BaseModel):
+    """Summary of batch file validation.
+    
+    Attributes:
+        overall_status: Overall validation status (valid if all valid, partial if mixed, invalid if all invalid).
+        total_files: Total number of files in batch.
+        valid_files: Number of valid files.
+        warning_files: Number of files with warnings.
+        invalid_files: Number of invalid files.
+        files: Detailed validation results per file.
+        can_proceed: Whether user can proceed with creation (true if at least one valid file).
+        summary_message: Human-readable summary.
+    """
+    
+    overall_status: ValidationStatus
+    total_files: int
+    valid_files: int
+    warning_files: int
+    invalid_files: int
+    files: list[FileValidationResult]
+    can_proceed: bool
+    summary_message: str
+
+
+class CreateDatabaseWithFilesRequest(BaseModel):
+    """Request to create database with initial file upload.
+    
+    This extends database creation to include file upload in a single operation.
+    Files are validated before database creation proceeds.
+    
+    Attributes:
+        name: Database name.
+        ingest_mode: Mode for ingestion (text/image/hybrid).
+        text_embedding_model: Model for text embeddings (optional, uses default if not specified).
+        image_embedding_model: Model for image embeddings (optional, uses default if not specified).
+        text_column: Column name for text content (required for text/hybrid modes).
+        image_column: Column name for image paths/URLs (required for image/hybrid modes).
+        id_column: Optional column name for document IDs.
+        metadata_columns: Optional list of column names to include as metadata.
+    """
+    
+    name: str = Field(..., min_length=1, max_length=100)
+    ingest_mode: IngestMode
+    text_embedding_model: str | None = Field(default="sentence-transformers/all-MiniLM-L6-v2")
+    image_embedding_model: str | None = Field(default="openai/clip-vit-base-patch16")
+    text_column: str | None = None
+    image_column: str | None = None
+    id_column: str | None = None
+    metadata_columns: list[str] | None = None
+    
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate database name format."""
+        if len(v) > 1 and not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9 -]*[a-zA-Z0-9]$", v):
+            raise ValueError("Name must be alphanumeric with spaces/hyphens, starting and ending with alphanumeric")
+        if len(v) == 1 and not v.isalnum():
+            raise ValueError("Single character name must be alphanumeric")
+        return v
+
+
+class IngestionResult(BaseModel):
+    """Result of database creation with ingestion.
+    
+    Attributes:
+        database_id: ID of created database.
+        database_name: Name of created database.
+        total_files: Total files processed.
+        documents_processed: Number of documents successfully ingested.
+        documents_ignored: Number of documents ignored (e.g., missing required columns).
+        documents_failed: Number of documents that failed processing.
+        processing_time_seconds: Total processing time.
+        errors: List of error messages if any failures occurred.
+    """
+    
+    database_id: str
+    database_name: str
+    total_files: int
+    documents_processed: int
+    documents_ignored: int
+    documents_failed: int
+    processing_time_seconds: float
+    errors: list[str] = Field(default_factory=list)
 
 
 class SearchRequest(BaseModel):
