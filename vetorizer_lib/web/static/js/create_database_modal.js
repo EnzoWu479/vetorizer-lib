@@ -9,7 +9,8 @@ let validationResult = null;
  */
 function openCreateDatabaseModal() {
     const modal = document.getElementById('createDatabaseModal');
-    modal.style.display = 'flex';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
     resetModal();
 }
 
@@ -18,7 +19,8 @@ function openCreateDatabaseModal() {
  */
 function closeCreateDatabaseModal() {
     const modal = document.getElementById('createDatabaseModal');
-    modal.style.display = 'none';
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
     resetModal();
 }
 
@@ -130,7 +132,8 @@ function handleFileSelect(event) {
 function handleDragOver(event) {
     event.preventDefault();
     event.stopPropagation();
-    document.getElementById('fileUploadArea').classList.add('drag-over');
+    const area = document.getElementById('fileUploadArea');
+    area.classList.add('border-blue-500', 'bg-blue-50');
 }
 
 /**
@@ -139,7 +142,8 @@ function handleDragOver(event) {
 function handleDragLeave(event) {
     event.preventDefault();
     event.stopPropagation();
-    document.getElementById('fileUploadArea').classList.remove('drag-over');
+    const area = document.getElementById('fileUploadArea');
+    area.classList.remove('border-blue-500', 'bg-blue-50');
 }
 
 /**
@@ -148,7 +152,8 @@ function handleDragLeave(event) {
 function handleDrop(event) {
     event.preventDefault();
     event.stopPropagation();
-    document.getElementById('fileUploadArea').classList.remove('drag-over');
+    const area = document.getElementById('fileUploadArea');
+    area.classList.remove('border-blue-500', 'bg-blue-50');
     
     const files = Array.from(event.dataTransfer.files);
     addFiles(files);
@@ -192,10 +197,10 @@ function updateFileList() {
     
     fileList.style.display = 'block';
     fileList.innerHTML = selectedFiles.map((file, index) => `
-        <div class="file-item">
-            <span class="file-name">${file.name}</span>
-            <span class="file-size">${formatFileSize(file.size)}</span>
-            <button type="button" class="btn-icon" onclick="removeFile(${index})">
+        <div class="flex items-center justify-between p-4">
+            <span class="flex-1 font-medium text-gray-800">${file.name}</span>
+            <span class="mx-4 text-sm text-gray-500">${formatFileSize(file.size)}</span>
+            <button type="button" class="text-gray-400 hover:text-red-600 text-2xl leading-none transition" onclick="removeFile(${index})">
                 ×
             </button>
         </div>
@@ -277,16 +282,28 @@ function displayValidationResults(result) {
     resultsSection.style.display = 'block';
     
     // Display summary
-    const statusClass = result.overall_status === 'VALID' ? 'success' : 
-                       result.overall_status === 'WARNING' ? 'warning' : 'error';
+    let bgClass, borderClass, iconColor;
+    if (result.overall_status === 'VALID') {
+        bgClass = 'bg-green-50';
+        borderClass = 'border-green-200';
+        iconColor = 'text-green-600';
+    } else if (result.overall_status === 'WARNING') {
+        bgClass = 'bg-yellow-50';
+        borderClass = 'border-yellow-200';
+        iconColor = 'text-yellow-600';
+    } else {
+        bgClass = 'bg-red-50';
+        borderClass = 'border-red-200';
+        iconColor = 'text-red-600';
+    }
     
     summaryDiv.innerHTML = `
-        <div class="validation-summary-${statusClass}">
-            <h4>${result.summary_message}</h4>
-            <div class="validation-stats">
-                <span class="stat"><strong>${result.valid_count}</strong> Valid</span>
-                <span class="stat"><strong>${result.warning_count}</strong> Warnings</span>
-                <span class="stat"><strong>${result.invalid_count}</strong> Invalid</span>
+        <div class="${bgClass} ${borderClass} border rounded-lg p-4">
+            <h4 class="font-semibold ${iconColor} mb-2">${result.summary_message}</h4>
+            <div class="flex gap-6 text-sm text-gray-600">
+                <span><strong class="text-gray-800">${result.valid_count}</strong> Valid</span>
+                <span><strong class="text-gray-800">${result.warning_count}</strong> Warnings</span>
+                <span><strong class="text-gray-800">${result.invalid_count}</strong> Invalid</span>
             </div>
         </div>
     `;
@@ -294,24 +311,25 @@ function displayValidationResults(result) {
     // Display per-file details if there are any issues
     if (result.warning_count > 0 || result.invalid_count > 0) {
         detailsDiv.style.display = 'block';
-        detailsDiv.innerHTML = '<h4>File Details</h4>' + result.file_results.map(fileResult => {
+        detailsDiv.innerHTML = '<h4 class="font-semibold text-gray-800 mb-3">File Details</h4>' + result.file_results.map(fileResult => {
             if (fileResult.status === 'VALID') return '';
             
             const statusIcon = fileResult.status === 'WARNING' ? '⚠️' : '❌';
             return `
-                <div class="file-validation-item">
-                    <div class="file-validation-header">
-                        ${statusIcon} <strong>${fileResult.filename}</strong>
-                        <span class="file-size">${formatFileSize(fileResult.file_size || 0)}</span>
+                <div class="border border-gray-200 rounded-lg p-4 mb-3">
+                    <div class="flex items-center gap-2 mb-2 text-sm">
+                        <span class="text-lg">${statusIcon}</span>
+                        <strong class="text-gray-800">${fileResult.filename}</strong>
+                        <span class="text-gray-500 ml-auto">${formatFileSize(fileResult.file_size || 0)}</span>
                     </div>
                     ${fileResult.errors && fileResult.errors.length > 0 ? `
-                        <ul class="validation-errors">
-                            ${fileResult.errors.map(err => `<li class="error">${err}</li>`).join('')}
+                        <ul class="ml-6 space-y-1 text-sm text-red-600">
+                            ${fileResult.errors.map(err => `<li>• ${err}</li>`).join('')}
                         </ul>
                     ` : ''}
                     ${fileResult.warnings && fileResult.warnings.length > 0 ? `
-                        <ul class="validation-warnings">
-                            ${fileResult.warnings.map(warn => `<li class="warning">${warn}</li>`).join('')}
+                        <ul class="ml-6 space-y-1 text-sm text-yellow-600">
+                            ${fileResult.warnings.map(warn => `<li>• ${warn}</li>`).join('')}
                         </ul>
                     ` : ''}
                 </div>
@@ -323,14 +341,18 @@ function displayValidationResults(result) {
     
     // Enable/disable create button based on validation
     const createButton = document.getElementById('createButton');
-    if (result.can_proceed) {
-        createButton.style.display = 'inline-block';
-        createButton.disabled = false;
-    } else {
-        createButton.style.display = 'none';
-        createButton.disabled = true;
-    }
-}
+    const bgColor = type === 'error' ? 'bg-red-500' : 
+                   type === 'success' ? 'bg-green-500' : 
+                   type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500';
+    
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-8 right-8 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-slide-in`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+        setTimeout(() => toast.remove(), 300
 
 /**
  * Show toast notification
