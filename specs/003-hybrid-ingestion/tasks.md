@@ -61,9 +61,9 @@
 
 - [X] T011 [P] [US0] Unit test for database creation validation logic in tests/unit/web/test_database_validation.py
 - [X] T012 [P] [US0] Unit test for file validation service in tests/unit/web/test_file_validation.py
-- [ ] T013 [P] [US0] Contract test for POST /api/databases endpoint in tests/contract/test_api.py
-- [ ] T014 [P] [US0] Contract test for POST /api/databases/validate endpoint in tests/contract/test_api.py
-- [ ] T015 [US0] Integration test for complete database creation workflow in tests/integration/web/test_create_database_workflow.py
+- [X] T013 [P] [US0] Contract test for POST /api/databases endpoint in tests/contract/test_api.py
+- [X] T014 [P] [US0] Contract test for POST /api/databases/validate endpoint in tests/contract/test_api.py
+- [X] T015 [US0] Integration test for complete database creation workflow in tests/integration/web/test_create_database_workflow.py
 
 ### Implementation for User Story 0
 

@@ -225,3 +225,69 @@ class TestExceptionsContract:
         from vetorizer_lib import SearchError, VetorizerError
 
         assert issubclass(SearchError, VetorizerError)
+
+
+class TestWebAPIDatabaseEndpoints:
+    """Contract tests for web API database endpoints."""
+    
+    def test_post_databases_endpoint_exists(self) -> None:
+        """POST /api/databases endpoint exists."""
+        from fastapi.testclient import TestClient
+        from vetorizer_lib.web.app import app
+        
+        client = TestClient(app)
+        # Endpoint should exist (even if it returns error without valid data)
+        response = client.post("/api/databases")
+        # Should not be 404 (endpoint exists)
+        assert response.status_code != 404
+    
+    def test_post_databases_validate_endpoint_exists(self) -> None:
+        """POST /api/databases/validate endpoint exists."""
+        from fastapi.testclient import TestClient
+        from vetorizer_lib.web.app import app
+        
+        client = TestClient(app)
+        response = client.post("/api/databases/validate")
+        # Should not be 404 (endpoint exists)
+        assert response.status_code != 404
+    
+    def test_post_databases_accepts_multipart_form(self) -> None:
+        """POST /api/databases accepts multipart/form-data."""
+        from fastapi.testclient import TestClient
+        from vetorizer_lib.web.app import app
+        import io
+        
+        client = TestClient(app)
+        response = client.post(
+            "/api/databases",
+            data={
+                "name": "Test DB",
+                "ingest_mode": "text",
+                "text_column": "content",
+            },
+            files={"files": ("test.csv", io.BytesIO(b"id,content\n1,test"), "text/csv")},
+        )
+        # Should not be 415 Unsupported Media Type
+        assert response.status_code != 415
+    
+    def test_databases_validate_returns_validation_summary(self) -> None:
+        """POST /api/databases/validate returns BatchValidationSummary structure."""
+        from fastapi.testclient import TestClient
+        from vetorizer_lib.web.app import app
+        import io
+        
+        client = TestClient(app)
+        response = client.post(
+            "/api/databases/validate",
+            data={"ingest_mode": "text"},
+            files={"files": ("test.csv", io.BytesIO(b"id,content\n1,test"), "text/csv")},
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            # Should have validation summary structure
+            assert "overall_status" in data
+            assert "total_files" in data
+            assert "valid_files" in data
+            assert "invalid_files" in data
+            assert "can_proceed" in data

@@ -185,3 +185,46 @@ def delete_database_by_id(
                 )
             ).model_dump(),
         )
+
+
+# New endpoints for hybrid ingestion with file upload
+
+from fastapi import File, UploadFile, Form
+from vetorizer_lib.web.models.schemas import (
+    BatchValidationSummary,
+    IngestionResult,
+    IngestMode,
+)
+from vetorizer_lib.web.services.validation_service import validate_file_batch
+
+
+@router.post("/validate", response_model=BatchValidationSummary)
+async def validate_files_for_database(
+    ingest_mode: IngestMode = Form(...),
+    files: list[UploadFile] = File(...),
+) -> BatchValidationSummary:
+    """Validate files before database creation.
+    
+    Validates uploaded files against the selected ingest mode and returns
+    detailed validation summary.
+    
+    Args:
+        ingest_mode: Mode for ingestion (text/image/hybrid).
+        files: List of files to validate.
+        
+    Returns:
+        BatchValidationSummary with validation results.
+    """
+    # Prepare files for validation
+    file_handles: list[tuple[str, any]] = []
+    for upload_file in files:
+        file_handles.append((upload_file.filename or "unknown", upload_file.file))
+    
+    # Validate batch
+    summary = await validate_file_batch(file_handles, ingest_mode)
+    
+    # Reset file positions
+    for upload_file in files:
+        await upload_file.seek(0)
+    
+    return summary
