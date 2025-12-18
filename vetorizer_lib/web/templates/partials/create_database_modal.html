@@ -40,7 +40,7 @@
                                    class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500">
                             <span class="ml-3 flex-1">
                                 <strong class="block text-gray-800">Text Only</strong>
-                                <small class="block text-gray-600 mt-1">Process text documents (CSV, TXT, JSON)</small>
+                                <small class="block text-gray-600 mt-1">CSV with (text, label) columns - text content directly in CSV</small>
                             </span>
                         </label>
                         
@@ -52,7 +52,7 @@
                                    class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500">
                             <span class="ml-3 flex-1">
                                 <strong class="block text-gray-800">Image Only</strong>
-                                <small class="block text-gray-600 mt-1">Process images (JPG, PNG, WEBP)</small>
+                                <small class="block text-gray-600 mt-1">CSV with (image_path, label) columns - paths to image files</small>
                             </span>
                         </label>
                         
@@ -64,7 +64,7 @@
                                    class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500">
                             <span class="ml-3 flex-1">
                                 <strong class="block text-gray-800">Hybrid (Text + Image)</strong>
-                                <small class="block text-gray-600 mt-1">Process documents with text and images</small>
+                                <small class="block text-gray-600 mt-1">CSV referencing documents/images/PDFs with both modalities</small>
                             </span>
                         </label>
                     </div>
@@ -154,7 +154,7 @@
                            id="fileInput" 
                            name="files" 
                            multiple
-                           accept=".csv,.txt,.json,.jpg,.jpeg,.png,.webp"
+                           accept=".csv"
                            onchange="handleFileSelect(event)"
                            class="hidden">
                     
@@ -162,13 +162,18 @@
                         <svg class="w-12 h-12 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M9 16v-6H5l7-7 7 7h-4v6H9zm-4 4h14v-2H5v2z"/>
                         </svg>
-                        <p class="text-gray-700 font-medium">Drag and drop files here</p>
+                        <p class="text-gray-700 font-medium">Drag and drop CSV files here</p>
                         <p class="text-gray-500">or</p>
                         <button type="button" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition" onclick="document.getElementById('fileInput').click()">
-                            Browse Files
+                            Browse CSV Files
                         </button>
                         <p class="text-sm text-gray-500 mt-2" id="uploadInfo">
-                            No files selected
+                            No CSV files selected
+                        </p>
+                        <p class="text-xs text-blue-600 mt-1 max-w-md text-center">
+                            <strong>Text mode:</strong> CSV with (text, label) columns<br>
+                            <strong>Image mode:</strong> CSV with (image_path, label) columns<br>
+                            <strong>Hybrid mode:</strong> CSV referencing documents/images/PDFs
                         </p>
                     </div>
                 </div>

@@ -107,8 +107,10 @@ Como pessoa usuária, eu quero que o vetor híbrido seja composto de maneira det
 - **FR-UI-007**: Ao prosseguir, o sistema DEVE criar o banco de dados E executar a ingestão dos documentos válidos em uma única operação transacional.
 - **FR-UI-008**: Após conclusão, o sistema DEVE exibir um relatório final de processamento com estatísticas finais de documentos processados/ignorados/falhas.
 
-#### Core Requirements
-- **FR-001**: O sistema DEVE permitir selecionar o modo de ingestão para um dataset de documentos como:
+#### Core Requirements- **FR-000**: O sistema DEVE aceitar APENAS arquivos CSV como entrada para ingestão, independente do modo selecionado:
+  - **Modo Texto**: CSV deve conter colunas com texto direto e label
+  - **Modo Imagem**: CSV deve conter colunas com caminhos para arquivos de imagem e label
+  - **Modo Híbrido**: CSV deve referenciar documentos/imagens/PDFs que contêm ambas as modalidades- **FR-001**: O sistema DEVE permitir selecionar o modo de ingestão para um dataset de documentos como:
   - somente texto
   - somente imagem
   - texto e imagem (híbrido)
@@ -143,8 +145,10 @@ Como pessoa usuária, eu quero que o vetor híbrido seja composto de maneira det
 - **SC-004**: Um conjunto de regressão contendo ao menos 20 casos (10 somente texto, 10 somente imagem) continua retornando resultados na busca, sem alteração de comportamento percebida pela pessoa usuária.
 
 ## Assumptions
-
-- A ingestão de “dataset de documentos” pode conter documentos com somente texto, somente imagem, ou ambos.
+- **CSV como ponto de entrada único**: Para todos os modos (texto, imagem ou híbrido), a ingestão SEMPRE começa com o upload de um arquivo CSV:
+  - **Modo Texto**: CSV contém colunas (texto, label) onde a coluna de texto contém o conteúdo textual direto
+  - **Modo Imagem**: CSV contém colunas (caminho_imagem, label) onde a coluna de caminho aponta para arquivos de imagem
+  - **Modo Híbrido**: CSV contém colunas que referenciam documentos/imagens/PDFs que possuem ambas as modalidades- A ingestão de “dataset de documentos” pode conter documentos com somente texto, somente imagem, ou ambos.
 - Quando o modo selecionado exigir uma modalidade ausente em um documento, o sistema deve produzir um resultado previsível e relatável (processado/ignorado/falhou), sem comportamento silencioso.
 - A busca vetorial deve ser possível com pelo menos uma das modalidades (texto e/ou imagem), conforme disponibilidade do dataset.
 
