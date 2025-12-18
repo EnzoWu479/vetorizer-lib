@@ -1,0 +1,35 @@
+{% if databases %}
+<div class="space-y-3">
+    {% for db in databases %}
+    <div class="border rounded-lg p-4 card-hover">
+        <div class="flex justify-between items-start">
+            <div>
+                <h3 class="font-medium text-gray-800">{{ db.name }}</h3>
+                <p class="text-sm text-gray-500">{{ db.document_count }} documents</p>
+            </div>
+            <span class="px-2 py-1 text-xs rounded 
+                {% if db.status == 'READY' %}bg-green-100 text-green-800
+                {% elif db.status == 'CREATING' %}bg-yellow-100 text-yellow-800
+                {% elif db.status == 'UPDATING' %}bg-blue-100 text-blue-800
+                {% else %}bg-red-100 text-red-800{% endif %}">
+                {{ db.status }}
+            </span>
+        </div>
+        <div class="flex justify-between items-center mt-2">
+            <p class="text-xs text-gray-400">Created: {{ db.created_at.strftime('%Y-%m-%d') if db.created_at else 'N/A' }}</p>
+            <div class="flex space-x-2">
+                <a href="/search?db={{ db.id }}" class="text-xs text-blue-600 hover:underline">Search</a>
+                <a href="/manage" class="text-xs text-gray-600 hover:underline">Manage</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-8 text-gray-500">
+    <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+    </svg>
+    <p>No databases yet. Upload a CSV to get started!</p>
+</div>
+{% endif %}

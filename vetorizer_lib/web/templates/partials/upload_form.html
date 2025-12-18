@@ -1,0 +1,166 @@
+<form id="upload-form" class="space-y-4">
+    <!-- File Upload -->
+    <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">CSV File</label>
+        <div id="drop-zone" class="drop-zone border-2 border-dashed rounded-lg p-6 text-center cursor-pointer">
+            <input type="file" name="file" id="file-input" accept=".csv" class="hidden" required>
+            <svg class="w-12 h-12 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <p class="text-gray-600">Drop your CSV file here or <span class="text-blue-600">browse</span></p>
+            <p id="file-name" class="text-sm text-gray-500 mt-2 hidden"></p>
+        </div>
+    </div>
+
+    <!-- Column Selector (shown after file upload) -->
+    <div id="column-selector" class="hidden space-y-4">
+        <!-- Content Column -->
+        <div>
+            <label for="content_column" class="block text-sm font-medium text-gray-700 mb-2">
+                Content Column <span class="text-red-500">*</span>
+            </label>
+            <select name="content_column" id="content_column" required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Select column to embed...</option>
+            </select>
+            <p class="text-xs text-gray-500 mt-1">This column will be converted to vector embeddings</p>
+        </div>
+
+        <!-- ID Column (optional) -->
+        <div>
+            <label for="id_column" class="block text-sm font-medium text-gray-700 mb-2">
+                ID Column <span class="text-gray-400">(optional)</span>
+            </label>
+            <select name="id_column" id="id_column"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Auto-generate IDs</option>
+            </select>
+        </div>
+
+        <!-- Metadata Columns (optional) -->
+        <div>
+            <label for="metadata_columns" class="block text-sm font-medium text-gray-700 mb-2">
+                Metadata Columns <span class="text-gray-400">(optional)</span>
+            </label>
+            <input type="text" name="metadata_columns" id="metadata_columns" placeholder="col1, col2, col3"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+            <p class="text-xs text-gray-500 mt-1">Comma-separated list of columns to store as metadata</p>
+        </div>
+    </div>
+
+    <!-- Database Name -->
+    <div>
+        <label for="database_name" class="block text-sm font-medium text-gray-700 mb-2">
+            Database Name <span class="text-red-500">*</span>
+        </label>
+        <input type="text" name="database_name" id="database_name" required
+               placeholder="e.g., my-products"
+               pattern="^[a-zA-Z0-9][a-zA-Z0-9 -]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$"
+               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+        <p class="text-xs text-gray-500 mt-1">Alphanumeric with spaces and hyphens</p>
+    </div>
+
+    <!-- Embedding Model Selection -->
+    <div>
+        <label for="embedding_model" class="block text-sm font-medium text-gray-700 mb-2">
+            Embedding Model
+        </label>
+        <select name="embedding_model" id="embedding_model"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+            <option value="">Use default model</option>
+            <option value="sentence-transformers/all-MiniLM-L6-v2">all-MiniLM-L6-v2 (384 dim, fast)</option>
+            <option value="sentence-transformers/all-mpnet-base-v2">all-mpnet-base-v2 (768 dim, accurate)</option>
+            <option value="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2">multilingual-MiniLM-L12 (384 dim, multilingual)</option>
+        </select>
+        <p class="text-xs text-gray-500 mt-1">Select embedding model for this database (default from server config if empty)</p>
+    </div>
+
+    <!-- Overwrite Option -->
+    <div class="flex items-center">
+        <input type="checkbox" name="overwrite" id="overwrite" value="true"
+               class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+        <label for="overwrite" class="ml-2 text-sm text-gray-600">
+            Overwrite if database exists
+        </label>
+    </div>
+
+    <!-- Submit Button -->
+    <button type="submit" id="submit-btn"
+            class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        Create Database
+    </button>
+</form>
+
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileName = document.getElementById('file-name');
+    const columnSelector = document.getElementById('column-selector');
+    const contentColumn = document.getElementById('content_column');
+    const idColumn = document.getElementById('id_column');
+
+    // Click to browse
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    // Drag and drop
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            handleFileSelect(e.dataTransfer.files[0]);
+        }
+    });
+
+    // File input change
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length) {
+            handleFileSelect(e.target.files[0]);
+        }
+    });
+
+    async function handleFileSelect(file) {
+        fileName.textContent = file.name;
+        fileName.classList.remove('hidden');
+
+        // Preview columns
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('/api/columns', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to read CSV');
+            }
+
+            const preview = await response.json();
+            
+            // Populate column selectors
+            contentColumn.innerHTML = '<option value="">Select column to embed...</option>';
+            idColumn.innerHTML = '<option value="">Auto-generate IDs</option>';
+            
+            preview.columns.forEach(col => {
+                contentColumn.innerHTML += `<option value="${col}">${col}</option>`;
+                idColumn.innerHTML += `<option value="${col}">${col}</option>`;
+            });
+
+            columnSelector.classList.remove('hidden');
+            
+        } catch (error) {
+            showToast('Error reading CSV: ' + error.message, 'error');
+        }
+    }
+</script>

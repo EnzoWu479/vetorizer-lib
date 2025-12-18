@@ -1,0 +1,76 @@
+<div id="config-display" class="bg-white rounded-lg shadow p-6">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">Current Configuration</h3>
+    <p class="text-sm text-gray-500 mb-4">
+        Configuration is read-only. To change settings, restart the server with different CLI flags or environment variables.
+    </p>
+    
+    <div class="space-y-3">
+        <div class="flex justify-between items-center py-2 border-b border-gray-100">
+            <span class="text-sm font-medium text-gray-600">Host</span>
+            <span class="text-sm text-gray-900" id="config-host">Loading...</span>
+        </div>
+        <div class="flex justify-between items-center py-2 border-b border-gray-100">
+            <span class="text-sm font-medium text-gray-600">Port</span>
+            <span class="text-sm text-gray-900" id="config-port">Loading...</span>
+        </div>
+        <div class="flex justify-between items-center py-2 border-b border-gray-100">
+            <span class="text-sm font-medium text-gray-600">Qdrant Mode</span>
+            <span class="text-sm text-gray-900" id="config-qdrant-mode">Loading...</span>
+        </div>
+        <div class="flex justify-between items-center py-2 border-b border-gray-100" id="config-qdrant-url-row">
+            <span class="text-sm font-medium text-gray-600">Qdrant URL</span>
+            <span class="text-sm text-gray-900 font-mono text-xs" id="config-qdrant-url">Loading...</span>
+        </div>
+        <div class="flex justify-between items-center py-2 border-b border-gray-100" id="config-qdrant-path-row">
+            <span class="text-sm font-medium text-gray-600">Qdrant Storage Path</span>
+            <span class="text-sm text-gray-900 font-mono text-xs" id="config-qdrant-path">Loading...</span>
+        </div>
+        <div class="flex justify-between items-center py-2 border-b border-gray-100">
+            <span class="text-sm font-medium text-gray-600">Max Upload Size</span>
+            <span class="text-sm text-gray-900" id="config-max-upload">Loading...</span>
+        </div>
+        <div class="flex justify-between items-center py-2 border-b border-gray-100">
+            <span class="text-sm font-medium text-gray-600">Default Embedding Model</span>
+            <span class="text-sm text-gray-900 font-mono text-xs" id="config-embedding-model">Loading...</span>
+        </div>
+        <div class="flex justify-between items-center py-2">
+            <span class="text-sm font-medium text-gray-600">CORS Origins</span>
+            <span class="text-sm text-gray-900" id="config-cors">Loading...</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Load configuration on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('/api/config')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('config-host').textContent = data.host;
+                document.getElementById('config-port').textContent = data.port;
+                document.getElementById('config-qdrant-mode').textContent = data.qdrant_mode === 'remote' ? 'Remote Server' : 'Local Storage';
+                
+                // Show/hide appropriate Qdrant config row
+                if (data.qdrant_mode === 'remote') {
+                    document.getElementById('config-qdrant-url').textContent = data.qdrant_url;
+                    document.getElementById('config-qdrant-path-row').style.display = 'none';
+                } else {
+                    document.getElementById('config-qdrant-path').textContent = data.qdrant_path;
+                    document.getElementById('config-qdrant-url-row').style.display = 'none';
+                }
+                
+                document.getElementById('config-max-upload').textContent = data.max_upload_size_mb + ' MB';
+                document.getElementById('config-embedding-model').textContent = data.embedding_model;
+                document.getElementById('config-cors').textContent = data.cors_origins;
+            })
+            .catch(error => {
+                console.error('Failed to load config:', error);
+                document.querySelectorAll('[id^="config-"]').forEach(el => {
+                    if (el.tagName !== 'DIV') {
+                        el.textContent = 'Error loading';
+                        el.classList.add('text-red-500');
+                    }
+                });
+            });
+    });
+</script>

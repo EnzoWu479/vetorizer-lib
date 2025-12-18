@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Vetorizer - Compare{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-800 mb-8">Compare Search Results</h1>
+    
+    <!-- Comparison Form -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <form id="compare-form" class="space-y-4">
+            <!-- Database Multi-Select -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Select Databases (2-4) <span class="text-red-500">*</span>
+                </label>
+                <div id="database-checkboxes" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <!-- Checkboxes will be loaded here -->
+                    <div class="text-gray-500">Loading databases...</div>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">Select 2 to 4 databases to compare results</p>
+            </div>
+
+            <!-- Query Input -->
+            <div>
+                <label for="compare-query" class="block text-sm font-medium text-gray-700 mb-2">
+                    Search Query <span class="text-red-500">*</span>
+                </label>
+                <input type="text" name="query" id="compare-query" required
+                       placeholder="Enter your search query..."
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <!-- Result Limit -->
+            <div>
+                <label for="compare-limit" class="block text-sm font-medium text-gray-700 mb-2">
+                    Results per Database
+                </label>
+                <select name="limit" id="compare-limit"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    <option value="5">5 results</option>
+                    <option value="10" selected>10 results</option>
+                    <option value="15">15 results</option>
+                </select>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="compare-btn"
+                    class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled>
+                <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                Compare Results
+            </button>
+        </form>
+    </div>
+
+    <!-- Comparison Results -->
+    <div id="comparison-results" class="hidden">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold text-gray-700">Comparison Results</h2>
+            <span id="comparison-stats" class="text-sm text-gray-500"></span>
+        </div>
+        <div id="comparison-container" class="flex gap-4 overflow-x-auto pb-4">
+            <!-- Results columns will be loaded here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let selectedDatabases = [];
+
+    // Load databases on page load
+    async function loadDatabases() {
+        const container = document.getElementById('database-checkboxes');
+        
+        try {
+            const response = await fetch('/api/databases');
+            if (!response.ok) throw new Error('Failed to load databases');
+            
+            const databases = await response.json();
+            
+            if (databases.length === 0) {
+                container.innerHTML = '<p class="col-span-4 text-gray-500">No databases available. Create one first.</p>';
+                return;
+            }
+            
+            container.innerHTML = databases
+                .filter(db => db.status === 'READY')
+                .map(db => `
+                    <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <input type="checkbox" name="database_ids" value="${db.id}" 
+                               onchange="updateSelection()" 
+                               class="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
+                        <span class="ml-2">
+                            <span class="block font-medium text-gray-800">${db.name}</span>
+                            <span class="block text-xs text-gray-500">${db.document_count} docs</span>
+                        </span>
+                    </label>
+                `).join('');
+            
+        } catch (error) {
+            container.innerHTML = '<p class="col-span-4 text-red-500">Error loading databases</p>';
+        }
+    }
+
+    function updateSelection() {
+        const checkboxes = document.querySelectorAll('input[name="database_ids"]:checked');
+        selectedDatabases = Array.from(checkboxes).map(cb => cb.value);
+        
+        const btn = document.getElementById('compare-btn');
+        btn.disabled = selectedDatabases.length < 2 || selectedDatabases.length > 4;
+        
+        // Update button text
+        if (selectedDatabases.length < 2) {
+            btn.textContent = `Select at least 2 databases (${selectedDatabases.length} selected)`;
+        } else if (selectedDatabases.length > 4) {
+            btn.textContent = `Maximum 4 databases (${selectedDatabases.length} selected)`;
+        } else {
+            btn.innerHTML = `
+                <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                Compare ${selectedDatabases.length} Databases
+            `;
+        }
+    }
+
+    // Handle form submission
+    document.getElementById('compare-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const query = document.getElementById('compare-query').value;
+        const limit = document.getElementById('compare-limit').value;
+
+        if (selectedDatabases.length < 2) {
+            showToast('Please select at least 2 databases', 'error');
+            return;
+        }
+
+        // Show loading state
+        const resultsSection = document.getElementById('comparison-results');
+        const container = document.getElementById('comparison-container');
+        resultsSection.classList.remove('hidden');
+        container.innerHTML = '<div class="flex justify-center py-8 w-full"><div class="spinner"></div></div>';
+
+        try {
+            const response = await fetch('/api/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    database_ids: selectedDatabases,
+                    query_type: 'text',
+                    query_content: query,
+                    limit: parseInt(limit),
+                }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error?.message || 'Search failed');
+            }
+
+            const data = await response.json();
+            displayComparison(data);
+
+        } catch (error) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-red-500 w-full">
+                    <p>Error: ${error.message}</p>
+                </div>
+            `;
+        }
+    });
+
+    function displayComparison(data) {
+        const container = document.getElementById('comparison-container');
+        const stats = document.getElementById('comparison-stats');
+        
+        stats.textContent = `${data.total_results} total results in ${data.query_time_ms}ms`;
+
+        let html = '';
+        
+        for (const [dbId, results] of Object.entries(data.results)) {
+            const dbName = results.length > 0 ? results[0].database_name : 'Unknown';
+            
+            html += `
+                <div class="comparison-column flex-shrink-0 bg-white rounded-lg shadow-md p-4">
+                    <h3 class="font-semibold text-gray-800 mb-3 pb-2 border-b">${dbName}</h3>
+                    <p class="text-xs text-gray-500 mb-3">${results.length} results</p>
+                    <div class="space-y-3">
+            `;
+            
+            if (results.length === 0) {
+                html += '<p class="text-gray-400 text-sm">No results found</p>';
+            } else {
+                for (const result of results) {
+                    const scoreClass = result.score >= 0.8 ? 'score-high' : result.score >= 0.5 ? 'score-medium' : 'score-low';
+                    html += `
+                        <div class="border rounded p-3 text-sm">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="px-2 py-0.5 text-xs rounded ${scoreClass}">
+                                    ${(result.score * 100).toFixed(1)}%
+                                </span>
+                            </div>
+                            <p class="text-gray-700 line-clamp-3">${escapeHtml(result.content)}</p>
+                        </div>
+                    `;
+                }
+            }
+            
+            html += '</div></div>';
+        }
+
+        container.innerHTML = html;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Load databases on page load
+    loadDatabases();
+</script>
+{% endblock %}
