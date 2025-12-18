@@ -345,6 +345,19 @@ function displayValidationResults(result) {
     
     // Enable/disable create button based on validation
     const createButton = document.getElementById('createButton');
+    if (result.can_proceed) {
+        createButton.style.display = 'inline-block';
+        createButton.disabled = false;
+    } else {
+        createButton.style.display = 'none';
+        createButton.disabled = true;
+    }
+}
+
+/**
+ * Show toast notification
+ */
+function showToast(message, type = 'info') {
     const bgColor = type === 'error' ? 'bg-red-500' : 
                    type === 'success' ? 'bg-green-500' : 
                    type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500';
@@ -356,20 +369,7 @@ function displayValidationResults(result) {
     
     setTimeout(() => {
         toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
-        setTimeout(() => toast.remove(), 300
-
-/**
- * Show toast notification
- */
-function showToast(message, type = 'info') {
-    // Reuse existing toast partial from HTMX responses
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.remove();
+        setTimeout(() => toast.remove(), 300);
     }, 5000);
 }
 
