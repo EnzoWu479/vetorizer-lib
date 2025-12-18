@@ -20,7 +20,7 @@ from vetorizer_lib.web.models.schemas import (
     SearchResponse,
     QueryType,
 )
-from vetorizer_lib.web.services.search_service import search_text, search_image
+from vetorizer_lib.web.services.search_service import search_text, search_image, search_hybrid
 
 router = APIRouter(prefix="/api/search", tags=["search"])
 
@@ -173,6 +173,100 @@ async def search_by_image(
                 error=ErrorDetail(
                     code="SEARCH_ERROR",
                     message=f"Image search failed: {str(e)}",
+                )
+            ).model_dump(),
+        )
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+
+@router.post("/hybrid", response_model=SearchResponse)
+async def search_hybrid_endpoint(
+    file: UploadFile = File(...),
+    query_text: str = Form(...),
+    database_ids: str = Form(...),
+    limit: int = Form(10),
+    min_score: float | None = Form(None),
+    store: MetadataStore = Depends(get_store),
+    settings: WebSettings = Depends(get_settings_dep),
+) -> SearchResponse:
+    """Search vector databases using hybrid (text+image) query.
+
+    Args:
+        file: Uploaded image file.
+        query_text: Text query.
+        database_ids: Comma-separated list of database UUIDs.
+        limit: Maximum results per database.
+        min_score: Minimum similarity score (0-1).
+        store: MetadataStore instance.
+        settings: Application settings.
+
+    Returns:
+        Search response with results grouped by database.
+
+    Raises:
+        HTTPException: If file is invalid, database not hybrid, or search fails.
+    """
+    # Validate file type
+    valid_extensions = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+    file_ext = Path(file.filename or "").suffix.lower()
+    if file_ext not in valid_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=ErrorResponse(
+                error=ErrorDetail(
+                    code="INVALID_FILE",
+                    message=f"File must be an image ({', '.join(valid_extensions)})",
+                )
+            ).model_dump(),
+        )
+
+    # Parse database IDs
+    db_ids = [id.strip() for id in database_ids.split(",")]
+    if not db_ids or len(db_ids) > 4:
+        raise HTTPException(
+            status_code=400,
+            detail=ErrorResponse(
+                error=ErrorDetail(
+                    code="INVALID_REQUEST",
+                    message="Provide 1-4 database IDs",
+                )
+            ).model_dump(),
+        )
+
+    # Save uploaded file temporarily
+    content = await file.read()
+    tmp_path = Path(tempfile.gettempdir()) / f"vetorizer_hybrid_{uuid.uuid4()}{file_ext}"
+    tmp_path.write_bytes(content)
+
+    try:
+        return search_hybrid(
+            store=store,
+            database_ids=db_ids,
+            query_text=query_text,
+            image_path=str(tmp_path),
+            limit=limit,
+            min_score=min_score,
+            qdrant_url=settings.qdrant_url,
+            qdrant_path=str(settings.qdrant_path_resolved) if settings.qdrant_path_resolved else None,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=ErrorResponse(
+                error=ErrorDetail(
+                    code="INVALID_REQUEST",
+                    message=str(e),
+                )
+            ).model_dump(),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(
+                error=ErrorDetail(
+                    code="SEARCH_ERROR",
+                    message=f"Hybrid search failed: {str(e)}",
                 )
             ).model_dump(),
         )

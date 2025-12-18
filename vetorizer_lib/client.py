@@ -9,9 +9,10 @@ from pathlib import Path
 from typing import Any, Literal
 
 from vetorizer_lib.embedders.text import TextEmbedder
-from vetorizer_lib.ingest.csv import read_csv_batches
+from vetorizer_lib.ingest.csv import read_csv_batches, read_hybrid_csv_batches
 from vetorizer_lib.models.config import DistanceMetric, IngestConfig
 from vetorizer_lib.models.document import ContentType, IngestResult, SearchResult
+from vetorizer_lib.models.hybrid import HybridVectorParts, concat_hybrid_vector, hybrid_composition_metadata
 from vetorizer_lib.stores.qdrant import QdrantStore
 
 
@@ -46,6 +47,8 @@ class VetorizerClient:
     def __init__(
         self,
         model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
+        text_model_name: str | None = None,
+        image_model_name: str | None = None,
         qdrant_url: str | None = None,
         qdrant_api_key: str | None = None,
         qdrant_path: str | None = None,
@@ -54,6 +57,8 @@ class VetorizerClient:
     ) -> None:
         """Initialize the Vetorizer client."""
         self._model_name = model_name
+        self._text_model_name = text_model_name or model_name
+        self._image_model_name = image_model_name or model_name
         self._qdrant_url = qdrant_url
         self._qdrant_api_key = qdrant_api_key
         self._qdrant_path = qdrant_path
@@ -68,7 +73,7 @@ class VetorizerClient:
     def _get_embedder(self) -> TextEmbedder:
         """Get or create the text embedder."""
         if self._embedder is None:
-            self._embedder = TextEmbedder(model_name=self._model_name)
+            self._embedder = TextEmbedder(model_name=self._text_model_name)
         return self._embedder
 
     def _get_store(self) -> QdrantStore:
@@ -150,6 +155,82 @@ class VetorizerClient:
                     doc.embedding = embedding
 
                 # Store in vector database
+                store.upsert(batch)
+                processed += len(batch)
+
+                if on_progress and total > 0:
+                    on_progress(processed, total)
+
+            except Exception as e:
+                failed += len(batch)
+                errors.append(f"Batch failed: {e}")
+
+        duration = time.time() - start_time
+
+        return IngestResult(
+            processed=processed,
+            skipped=skipped,
+            failed=failed,
+            errors=errors,
+            duration_seconds=duration,
+        )
+
+    def ingest_hybrid_csv(
+        self,
+        file_path: str | Path,
+        text_column: str,
+        image_column: str,
+        id_column: str | None = None,
+        metadata_columns: list[str] | None = None,
+        batch_size: int = 100,
+        skip_empty: bool = True,
+        on_progress: Callable[[int, int], None] | None = None,
+    ) -> IngestResult:
+        start_time = time.time()
+
+        text_embedder = self._get_embedder()
+        image_embedder = self._get_image_embedder()
+        store = self._get_store()
+
+        processed = 0
+        skipped = 0
+        failed = 0
+        errors: list[str] = []
+
+        total = 0
+        if on_progress:
+            import pandas as pd
+
+            try:
+                total = len(pd.read_csv(file_path))
+            except Exception:
+                total = 0
+
+        for batch in read_hybrid_csv_batches(
+            file_path=str(file_path),
+            text_column=text_column,
+            image_column=image_column,
+            id_column=id_column,
+            metadata_columns=metadata_columns or [],
+            batch_size=batch_size,
+            skip_empty=skip_empty,
+        ):
+            try:
+                texts = [doc.content for doc in batch]
+                image_paths = [str(doc.metadata.get(image_column, "")) for doc in batch]
+
+                text_embeddings = text_embedder.embed(texts)
+                image_embeddings = image_embedder.embed_image(image_paths)
+
+                for doc, text_embedding, image_embedding in zip(
+                    batch, text_embeddings, image_embeddings
+                ):
+                    doc.embedding = concat_hybrid_vector(
+                        HybridVectorParts(text_vector=text_embedding, image_vector=image_embedding)
+                    )
+                    doc.modalities = ["text", "image"]
+                    doc.composition_metadata = hybrid_composition_metadata()
+
                 store.upsert(batch)
                 processed += len(batch)
 
@@ -320,10 +401,55 @@ class VetorizerClient:
             filter=filter,
         )
 
+    def search_hybrid(
+        self,
+        query_text: str,
+        query_image_path: str | Path,
+        limit: int = 10,
+        min_score: float | None = None,
+        filter: dict[str, Any] | None = None,
+    ) -> list[SearchResult]:
+        """Search the vector database using a hybrid (text+image) query.
+
+        Args:
+            query_text: Text query.
+            query_image_path: Path to the query image.
+            limit: Maximum number of results to return.
+            min_score: Minimum similarity score threshold.
+            filter: Metadata filter conditions.
+
+        Returns:
+            List of SearchResult objects sorted by similarity.
+
+        Raises:
+            SearchError: If the search fails.
+            VectorCompatibilityError: If query dimensions don't match collection.
+        """
+        text_embedder = self._get_embedder()
+        image_embedder = self._get_image_embedder()
+        store = self._get_store()
+
+        # Embed text and image
+        text_vectors = text_embedder.embed([query_text])
+        image_vectors = image_embedder.embed_image([str(query_image_path)])
+
+        # Concatenate in deterministic order (text first, then image)
+        query_vector = concat_hybrid_vector(
+            HybridVectorParts(text_vector=text_vectors[0], image_vector=image_vectors[0])
+        )
+
+        # Search the store
+        return store.search(
+            vector=query_vector,
+            limit=limit,
+            min_score=min_score,
+            filter=filter,
+        )
+
     def _get_image_embedder(self) -> Any:
         """Get or create the image embedder."""
         from vetorizer_lib.embedders.image import ImageEmbedder
 
         if self._image_embedder is None:
-            self._image_embedder = ImageEmbedder(model_name=self._model_name)
+            self._image_embedder = ImageEmbedder(model_name=self._image_model_name)
         return self._image_embedder

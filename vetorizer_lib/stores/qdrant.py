@@ -138,6 +138,8 @@ class QdrantStore:
                     "content": doc.content,
                     "content_type": doc.content_type.value,
                     "original_id": doc.id,  # Store original ID for retrieval
+                    "modalities": doc.modalities,
+                    **doc.composition_metadata,
                     **doc.metadata,
                 },
             )

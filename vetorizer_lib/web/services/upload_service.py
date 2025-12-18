@@ -11,7 +11,7 @@ from typing import Any, Callable
 import pandas as pd
 
 from vetorizer_lib.web.models.metadata_store import MetadataStore
-from vetorizer_lib.web.models.schemas import DatabaseStatus, UploadStatus, UploadJobResponse
+from vetorizer_lib.web.models.schemas import DatabaseStatus, IngestMode, UploadStatus, UploadJobResponse
 
 
 def create_upload_job(
@@ -20,6 +20,9 @@ def create_upload_job(
     filename: str,
     file_size_bytes: int,
     content_column: str,
+    ingest_mode: IngestMode = IngestMode.TEXT,
+    text_column: str | None = None,
+    image_column: str | None = None,
     id_column: str | None = None,
     metadata_columns: list[str] | None = None,
 ) -> UploadJobResponse:
@@ -46,6 +49,9 @@ def create_upload_job(
         filename=filename,
         file_size_bytes=file_size_bytes,
         content_column=content_column,
+        ingest_mode=ingest_mode,
+        text_column=text_column,
+        image_column=image_column,
         id_column=id_column,
         metadata_columns=metadata_columns,
     )
@@ -146,6 +152,9 @@ async def process_csv(
     file_path: Path,
     content_column: str,
     collection_name: str,
+    ingest_mode: IngestMode = IngestMode.TEXT,
+    text_column: str | None = None,
+    image_column: str | None = None,
     id_column: str | None = None,
     metadata_columns: list[str] | None = None,
     progress_callback: Callable[[int, int], None] | None = None,
@@ -184,8 +193,19 @@ async def process_csv(
         # Read CSV
         df = pd.read_csv(file_path)
 
-        if content_column not in df.columns:
-            raise ValueError(f"Column '{content_column}' not found in CSV")
+        if ingest_mode == IngestMode.TEXT:
+            if content_column not in df.columns:
+                raise ValueError(f"Column '{content_column}' not found in CSV")
+        elif ingest_mode == IngestMode.IMAGE:
+            if content_column not in df.columns:
+                raise ValueError(f"Column '{content_column}' not found in CSV")
+        elif ingest_mode == IngestMode.HYBRID:
+            if not text_column or not image_column:
+                raise ValueError("For hybrid ingestion, text_column and image_column are required")
+            if text_column not in df.columns:
+                raise ValueError(f"Column '{text_column}' not found in CSV")
+            if image_column not in df.columns:
+                raise ValueError(f"Column '{image_column}' not found in CSV")
 
         total_rows = len(df)
         processed = 0
@@ -199,52 +219,41 @@ async def process_csv(
             collection_name=collection_name,
         )
 
-        # Prepare data for ingestion
-        texts = df[content_column].fillna("").astype(str).tolist()
-
-        # Prepare IDs
-        if id_column and id_column in df.columns:
-            ids = df[id_column].astype(str).tolist()
-        else:
-            ids = None
-
-        # Prepare metadata
-        metadata_list = None
-        if metadata_columns:
-            valid_columns = [col for col in metadata_columns if col in df.columns]
-            if valid_columns:
-                metadata_list = df[valid_columns].to_dict(orient="records")
-
-        # Ingest in batches
-        batch_size = 100
-        for i in range(0, len(texts), batch_size):
-            batch_texts = texts[i:i + batch_size]
-            batch_ids = ids[i:i + batch_size] if ids else None
-            batch_metadata = metadata_list[i:i + batch_size] if metadata_list else None
-
-            try:
+        try:
+            if ingest_mode == IngestMode.TEXT:
                 client.ingest_csv(
-                    csv_path=str(file_path),
+                    file_path=str(file_path),
                     content_column=content_column,
                     id_column=id_column,
                     metadata_columns=metadata_columns,
                 )
-                processed += len(batch_texts)
-            except Exception:
-                failed += len(batch_texts)
+            elif ingest_mode == IngestMode.IMAGE:
+                client.ingest_images(
+                    file_path=str(file_path),
+                    image_column=content_column,
+                    id_column=id_column,
+                    metadata_columns=metadata_columns,
+                )
+            else:
+                client.ingest_hybrid_csv(
+                    file_path=str(file_path),
+                    text_column=text_column or "",
+                    image_column=image_column or "",
+                    id_column=id_column,
+                    metadata_columns=metadata_columns,
+                )
 
-            # Update progress
-            progress = int((i + len(batch_texts)) / total_rows * 100)
-            update_job_progress(store, job_id, progress, processed, failed)
+            processed = total_rows
+        except Exception:
+            failed = total_rows
 
-            if progress_callback:
-                progress_callback(progress, processed)
+        progress = 100
+        update_job_progress(store, job_id, progress, processed, failed)
 
-            # Small delay to allow other tasks
-            await asyncio.sleep(0.01)
+        if progress_callback:
+            progress_callback(progress, processed)
 
-            # Only process first batch since ingest_csv handles the whole file
-            break
+        await asyncio.sleep(0.01)
 
         # Get actual document count from the ingestion
         processed = total_rows - failed

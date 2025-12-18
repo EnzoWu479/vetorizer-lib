@@ -100,3 +100,13 @@ class SearchError(VetorizerError):
     Example:
         >>> raise SearchError("Collection 'products' does not exist")
     """
+
+
+class VectorCompatibilityError(VetorizerError):
+    """Incompatibility between query/ingest mode and stored vector dimensions.
+
+    Example:
+        >>> raise VectorCompatibilityError(
+        ...     "Database expects hybrid vectors (768), but query produced text vectors (384)."
+        ... )
+    """

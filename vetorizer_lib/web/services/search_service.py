@@ -186,3 +186,75 @@ def search_image(
         total_results=total_results,
         query_time_ms=query_time_ms,
     )
+
+
+def search_hybrid(
+    store: MetadataStore,
+    database_ids: list[str],
+    query_text: str,
+    image_path: str,
+    limit: int = 10,
+    min_score: float | None = None,
+    qdrant_url: str | None = None,
+    qdrant_path: str | None = "./data/qdrant",
+) -> SearchResponse:
+    """Search vector databases using a hybrid (text+image) query."""
+    from vetorizer_lib.client import VetorizerClient
+
+    start_time = time.time()
+    query_id = str(uuid.uuid4())
+    all_results: dict[str, list[SearchResultItem]] = {}
+    total_results = 0
+
+    for database_id in database_ids:
+        database = get_database(store, database_id)
+        if not database:
+            raise ValueError(f"Database '{database_id}' not found")
+
+        if database.ingest_mode and database.ingest_mode.value != "hybrid":
+            raise ValueError(
+                f"Database '{database.name}' is not in hybrid mode. "
+                f"Use text or image search instead."
+            )
+
+        client = VetorizerClient(
+            qdrant_url=qdrant_url,
+            qdrant_path=qdrant_path,
+            collection_name=database.collection_name,
+        )
+
+        try:
+            search_results = client.search_hybrid(
+                query_text=query_text,
+                query_image_path=image_path,
+                limit=limit,
+            )
+
+            db_results: list[SearchResultItem] = []
+            for result in search_results:
+                score = result.score if hasattr(result, 'score') else 0.0
+                if min_score is not None and score < min_score:
+                    continue
+                db_results.append(SearchResultItem(
+                    id=str(result.id) if hasattr(result, 'id') else str(uuid.uuid4()),
+                    content=result.content if hasattr(result, 'content') else "",
+                    score=score,
+                    metadata=result.metadata if hasattr(result, 'metadata') else None,
+                    database_id=database_id,
+                    database_name=database.name,
+                ))
+
+            all_results[database_id] = db_results
+            total_results += len(db_results)
+
+        except Exception:
+            all_results[database_id] = []
+
+    query_time_ms_hybrid = int((time.time() - start_time) * 1000)
+
+    return SearchResponse(
+        query_id=query_id,
+        results=all_results,
+        total_results=total_results,
+        query_time_ms=query_time_ms_hybrid,
+    )

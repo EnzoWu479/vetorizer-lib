@@ -21,6 +21,7 @@ from qdrant_client.models import (
 
 from vetorizer_lib.web.models.schemas import (
     DatabaseStatus,
+    IngestMode,
     UploadStatus,
     VectorDatabaseResponse,
     UploadJobResponse,
@@ -129,6 +130,11 @@ class MetadataStore:
         name: str,
         embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
         embedding_dimension: int = 384,
+        ingest_mode: IngestMode = IngestMode.TEXT,
+        text_embedding_model: str | None = None,
+        image_embedding_model: str | None = None,
+        text_embedding_dimension: int | None = None,
+        image_embedding_dimension: int | None = None,
     ) -> VectorDatabaseResponse:
         """Create a new vector database entry.
 
@@ -160,6 +166,11 @@ class MetadataStore:
             "document_count": 0,
             "embedding_model": embedding_model,
             "embedding_dimension": embedding_dimension,
+            "ingest_mode": ingest_mode.value,
+            "text_embedding_model": text_embedding_model,
+            "image_embedding_model": image_embedding_model,
+            "text_embedding_dimension": text_embedding_dimension,
+            "image_embedding_dimension": image_embedding_dimension,
             "status": DatabaseStatus.CREATING.value,
             "created_at": now,
             "updated_at": now,
@@ -183,6 +194,11 @@ class MetadataStore:
             document_count=0,
             embedding_model=embedding_model,
             embedding_dimension=embedding_dimension,
+            ingest_mode=ingest_mode,
+            text_embedding_model=text_embedding_model,
+            image_embedding_model=image_embedding_model,
+            text_embedding_dimension=text_embedding_dimension,
+            image_embedding_dimension=image_embedding_dimension,
             status=DatabaseStatus.CREATING,
             created_at=datetime.fromisoformat(now),
             updated_at=datetime.fromisoformat(now),
@@ -277,6 +293,11 @@ class MetadataStore:
         name: str | None = None,
         status: DatabaseStatus | None = None,
         document_count: int | None = None,
+        ingest_mode: IngestMode | None = None,
+        text_embedding_model: str | None = None,
+        image_embedding_model: str | None = None,
+        text_embedding_dimension: int | None = None,
+        image_embedding_dimension: int | None = None,
     ) -> VectorDatabaseResponse | None:
         """Update a vector database.
 
@@ -312,6 +333,23 @@ class MetadataStore:
             "document_count": document_count if document_count is not None else db.document_count,
             "embedding_model": db.embedding_model,
             "embedding_dimension": db.embedding_dimension,
+            "ingest_mode": (ingest_mode.value if ingest_mode else db.ingest_mode.value),
+            "text_embedding_model": (
+                text_embedding_model if text_embedding_model is not None else db.text_embedding_model
+            ),
+            "image_embedding_model": (
+                image_embedding_model if image_embedding_model is not None else db.image_embedding_model
+            ),
+            "text_embedding_dimension": (
+                text_embedding_dimension
+                if text_embedding_dimension is not None
+                else db.text_embedding_dimension
+            ),
+            "image_embedding_dimension": (
+                image_embedding_dimension
+                if image_embedding_dimension is not None
+                else db.image_embedding_dimension
+            ),
             "status": status.value if status else db.status.value,
             "created_at": db.created_at.isoformat(),
             "updated_at": now,
@@ -373,6 +411,11 @@ class MetadataStore:
             document_count=payload.get("document_count", 0),
             embedding_model=payload.get("embedding_model", "sentence-transformers/all-MiniLM-L6-v2"),
             embedding_dimension=payload.get("embedding_dimension", 384),
+            ingest_mode=IngestMode(payload.get("ingest_mode", IngestMode.TEXT.value)),
+            text_embedding_model=payload.get("text_embedding_model"),
+            image_embedding_model=payload.get("image_embedding_model"),
+            text_embedding_dimension=payload.get("text_embedding_dimension"),
+            image_embedding_dimension=payload.get("image_embedding_dimension"),
             status=DatabaseStatus(payload.get("status", "CREATING")),
             created_at=datetime.fromisoformat(payload["created_at"]),
             updated_at=datetime.fromisoformat(payload["updated_at"]),
@@ -388,6 +431,9 @@ class MetadataStore:
         filename: str,
         file_size_bytes: int,
         content_column: str,
+        ingest_mode: IngestMode = IngestMode.TEXT,
+        text_column: str | None = None,
+        image_column: str | None = None,
         id_column: str | None = None,
         metadata_columns: list[str] | None = None,
     ) -> UploadJobResponse:
@@ -414,6 +460,9 @@ class MetadataStore:
             "filename": filename,
             "file_size_bytes": file_size_bytes,
             "content_column": content_column,
+            "ingest_mode": ingest_mode.value,
+            "text_column": text_column,
+            "image_column": image_column,
             "id_column": id_column,
             "metadata_columns": metadata_columns or [],
             "status": UploadStatus.PENDING.value,
@@ -443,6 +492,9 @@ class MetadataStore:
             filename=filename,
             file_size_bytes=file_size_bytes,
             content_column=content_column,
+            ingest_mode=ingest_mode,
+            text_column=text_column,
+            image_column=image_column,
             id_column=id_column,
             metadata_columns=metadata_columns or [],
             status=UploadStatus.PENDING,
@@ -548,6 +600,9 @@ class MetadataStore:
             "filename": job.filename,
             "file_size_bytes": job.file_size_bytes,
             "content_column": job.content_column,
+            "ingest_mode": job.ingest_mode.value,
+            "text_column": job.text_column,
+            "image_column": job.image_column,
             "id_column": job.id_column,
             "metadata_columns": job.metadata_columns,
             "status": status.value if status else job.status.value,
@@ -581,6 +636,9 @@ class MetadataStore:
             filename=payload["filename"],
             file_size_bytes=payload["file_size_bytes"],
             content_column=payload["content_column"],
+            ingest_mode=IngestMode(payload.get("ingest_mode", IngestMode.TEXT.value)),
+            text_column=payload.get("text_column"),
+            image_column=payload.get("image_column"),
             id_column=payload.get("id_column"),
             metadata_columns=payload.get("metadata_columns", []),
             status=UploadStatus(payload.get("status", "PENDING")),

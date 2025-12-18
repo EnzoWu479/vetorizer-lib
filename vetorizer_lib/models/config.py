@@ -27,6 +27,18 @@ class Modality(str, Enum):
     MULTIMODAL = "multimodal"
 
 
+class IngestMode(str, Enum):
+    TEXT = "text"
+    IMAGE = "image"
+    HYBRID = "hybrid"
+
+
+class SearchMode(str, Enum):
+    TEXT = "text"
+    IMAGE = "image"
+    HYBRID = "hybrid"
+
+
 class DistanceMetric(str, Enum):
     """Vector similarity distance metric.
 

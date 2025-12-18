@@ -121,3 +121,30 @@ def read_csv_batches(
 
         if documents:
             yield documents
+
+
+def read_hybrid_csv_batches(
+    *,
+    file_path: str,
+    text_column: str,
+    image_column: str,
+    id_column: str | None = None,
+    metadata_columns: list[str] | None = None,
+    batch_size: int = 100,
+    skip_empty: bool = True,
+) -> Generator[list[Document], None, None]:
+    config = IngestConfig(
+        file_path=file_path,
+        content_column=text_column,
+        id_column=id_column,
+        metadata_columns=list(metadata_columns or []) + [image_column],
+        batch_size=batch_size,
+        skip_empty=skip_empty,
+    )
+
+    for batch in read_csv_batches(config, ContentType.TEXT):
+        for doc in batch:
+            if image_column in doc.metadata:
+                continue
+            doc.metadata[image_column] = ""
+        yield batch

@@ -93,7 +93,9 @@
                             </div>
                             <div class="mt-2 text-sm text-gray-500 space-y-1">
                                 <p><strong>Documents:</strong> ${db.document_count}</p>
+                                <p><strong>Mode:</strong> <span class="px-2 py-0.5 text-xs rounded ${db.ingest_mode === 'hybrid' ? 'bg-purple-100 text-purple-800' : db.ingest_mode === 'image' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}">${db.ingest_mode || 'text'}</span></p>
                                 <p><strong>Model:</strong> ${db.embedding_model}</p>
+                                <p><strong>Dimension:</strong> ${db.embedding_dimension}${db.ingest_mode === 'hybrid' ? ' (text: ' + (db.text_embedding_dimension || '?') + ' + image: ' + (db.image_embedding_dimension || '?') + ')' : ''}</p>
                                 <p><strong>Created:</strong> ${new Date(db.created_at).toLocaleString()}</p>
                                 <p><strong>Collection:</strong> ${db.collection_name}</p>
                             </div>

@@ -20,6 +20,7 @@ from vetorizer_lib.web.models.schemas import (
     ColumnPreviewResponse,
     ErrorResponse,
     ErrorDetail,
+    IngestMode,
     UploadJobResponse,
 )
 from vetorizer_lib.web.services.database_service import create_database, get_database_by_name
@@ -106,6 +107,9 @@ async def upload_csv(
     file: UploadFile = File(...),
     database_name: str = Form(...),
     content_column: str = Form(...),
+    ingest_mode: IngestMode = Form(IngestMode.TEXT),
+    text_column: str | None = Form(None),
+    image_column: str | None = Form(None),
     id_column: str | None = Form(None),
     metadata_columns: str | None = Form(None),
     embedding_model: str | None = Form(None),
@@ -175,6 +179,20 @@ async def upload_csv(
     if metadata_columns:
         metadata_list = [col.strip() for col in metadata_columns.split(",")]
 
+    effective_content_column = content_column
+    if ingest_mode == IngestMode.HYBRID:
+        if not text_column or not image_column:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponse(
+                    error=ErrorDetail(
+                        code="INVALID_PARAMS",
+                        message="For hybrid ingestion, text_column and image_column are required",
+                    )
+                ).model_dump(),
+            )
+        effective_content_column = text_column
+
     # Save uploaded file
     content = await file.read()
     file_size = len(content)
@@ -190,7 +208,12 @@ async def upload_csv(
 
     try:
         # Create database entry with embedding model
-        database = create_database(store, database_name, embedding_model=model_to_use)
+        database = create_database(
+            store,
+            database_name,
+            embedding_model=model_to_use,
+            ingest_mode=ingest_mode,
+        )
 
         # Create upload job
         job = create_upload_job(
@@ -198,7 +221,10 @@ async def upload_csv(
             database_id=database.id,
             filename=file.filename or "upload.csv",
             file_size_bytes=file_size,
-            content_column=content_column,
+            content_column=effective_content_column,
+            ingest_mode=ingest_mode,
+            text_column=text_column,
+            image_column=image_column,
             id_column=id_column,
             metadata_columns=metadata_list,
         )
@@ -219,7 +245,10 @@ async def upload_csv(
             job_id=job.id,
             database_id=database.id,
             file_path=tmp_path,
-            content_column=content_column,
+            content_column=effective_content_column,
+            ingest_mode=ingest_mode,
+            text_column=text_column,
+            image_column=image_column,
             collection_name=database.collection_name,
             id_column=id_column,
             metadata_columns=metadata_list,
@@ -249,6 +278,9 @@ async def _process_upload(
     database_id: str,
     file_path: Path,
     content_column: str,
+    ingest_mode: IngestMode,
+    text_column: str | None,
+    image_column: str | None,
     collection_name: str,
     id_column: str | None,
     metadata_columns: list[str] | None,
@@ -290,6 +322,9 @@ async def _process_upload(
             file_path=file_path,
             content_column=content_column,
             collection_name=collection_name,
+            ingest_mode=ingest_mode,
+            text_column=text_column,
+            image_column=image_column,
             id_column=id_column,
             metadata_columns=metadata_columns,
             progress_callback=progress_callback,

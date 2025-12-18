@@ -52,6 +52,8 @@ class Document:
     content: str
     content_type: ContentType = ContentType.TEXT
     embedding: list[float] = field(default_factory=list)
+    modalities: list[str] = field(default_factory=list)
+    composition_metadata: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
 
 

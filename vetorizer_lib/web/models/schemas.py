@@ -37,6 +37,12 @@ class QueryType(str, Enum):
     IMAGE = "image"
 
 
+class IngestMode(str, Enum):
+    TEXT = "text"
+    IMAGE = "image"
+    HYBRID = "hybrid"
+
+
 # Request Schemas
 
 
@@ -102,6 +108,11 @@ class VectorDatabaseResponse(BaseModel):
     document_count: int
     embedding_model: str
     embedding_dimension: int
+    ingest_mode: IngestMode = IngestMode.TEXT
+    text_embedding_model: str | None = None
+    image_embedding_model: str | None = None
+    text_embedding_dimension: int | None = None
+    image_embedding_dimension: int | None = None
     status: DatabaseStatus
     created_at: datetime
     updated_at: datetime
@@ -115,6 +126,9 @@ class UploadJobResponse(BaseModel):
     filename: str
     file_size_bytes: int
     content_column: str
+    ingest_mode: IngestMode = IngestMode.TEXT
+    text_column: str | None = None
+    image_column: str | None = None
     id_column: str | None = None
     metadata_columns: list[str] | None = None
     status: UploadStatus

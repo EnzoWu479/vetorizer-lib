@@ -5,7 +5,7 @@ vector database metadata using Qdrant-based MetadataStore.
 """
 
 from vetorizer_lib.web.models.metadata_store import MetadataStore
-from vetorizer_lib.web.models.schemas import DatabaseStatus, VectorDatabaseResponse
+from vetorizer_lib.web.models.schemas import DatabaseStatus, IngestMode, VectorDatabaseResponse
 
 
 def create_database(
@@ -13,6 +13,7 @@ def create_database(
     name: str,
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
     embedding_dimension: int = 384,
+    ingest_mode: IngestMode = IngestMode.TEXT,
 ) -> VectorDatabaseResponse:
     """Create a new vector database entry.
 
@@ -33,7 +34,12 @@ def create_database(
         >>> result = create_database(store, "my-products")
         >>> print(result.id)
     """
-    return store.create_database(name, embedding_model, embedding_dimension)
+    return store.create_database(
+        name,
+        embedding_model,
+        embedding_dimension,
+        ingest_mode=ingest_mode,
+    )
 
 
 def get_database(store: MetadataStore, database_id: str) -> VectorDatabaseResponse | None:

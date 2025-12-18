@@ -88,3 +88,38 @@ def empty_csv_file(tmp_path: Any) -> Generator[str, None, None]:
     csv_file = tmp_path / "empty.csv"
     csv_file.write_text("id,title,description\n")
     yield str(csv_file)
+
+
+@pytest.fixture
+def sample_text_vector() -> list[float]:
+    """Sample text vector for hybrid tests.
+
+    Returns:
+        A small deterministic vector.
+    """
+    return [1.0, 2.0, 3.0]
+
+
+@pytest.fixture
+def sample_image_vector() -> list[float]:
+    """Sample image vector for hybrid tests.
+
+    Returns:
+        A small deterministic vector.
+    """
+    return [4.0, 5.0]
+
+
+@pytest.fixture
+def sample_image_file(tmp_path: Any) -> Generator[str, None, None]:
+    """Create a temporary image file for tests.
+
+    Args:
+        tmp_path: pytest tmp_path fixture.
+
+    Yields:
+        Path to a temporary PNG file.
+    """
+    image_file = tmp_path / "sample.png"
+    image_file.write_bytes(b"\x89PNG\r\n\x1a\n")
+    yield str(image_file)

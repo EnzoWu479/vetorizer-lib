@@ -1,0 +1,139 @@
+openapi: 3.0.3
+info:
+  title: Vetorizer Web API (Hybrid Ingestion)
+  version: 1.0.0
+  description: |
+    Contrato de alto nível para suportar ingestão e busca híbrida (texto/imagem).
+    Este arquivo documenta mudanças esperadas na API; detalhes podem ser ajustados na implementação.
+
+paths:
+  /api/upload:
+    post:
+      summary: Upload de CSV e criação de base vetorial
+      description: |
+        Cria uma base e inicia um job de ingestão.
+        Deve suportar modo texto, imagem ou híbrido.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - database_name
+                - ingest_mode
+              properties:
+                file:
+                  type: string
+                  format: binary
+                database_name:
+                  type: string
+                ingest_mode:
+                  type: string
+                  enum: [text, image, hybrid]
+                text_column:
+                  type: string
+                  description: Coluna com conteúdo textual (obrigatório em text/hybrid)
+                image_column:
+                  type: string
+                  description: Coluna com referência de imagem (obrigatório em image/hybrid)
+                id_column:
+                  type: string
+                  nullable: true
+                metadata_columns:
+                  type: string
+                  description: Lista separada por vírgula
+                text_embedding_model:
+                  type: string
+                  nullable: true
+                image_embedding_model:
+                  type: string
+                  nullable: true
+                overwrite:
+                  type: boolean
+      responses:
+        '202':
+          description: Job criado
+
+  /api/search:
+    post:
+      summary: Busca por texto (mantém compatibilidade)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [database_ids, query_type, query_content]
+              properties:
+                database_ids:
+                  type: array
+                  items: { type: string }
+                query_type:
+                  type: string
+                  enum: [text]
+                query_content:
+                  type: string
+                limit:
+                  type: integer
+                min_score:
+                  type: number
+                  nullable: true
+      responses:
+        '200':
+          description: Resultados
+
+  /api/search/image:
+    post:
+      summary: Busca por imagem (mantém compatibilidade)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, database_ids]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                database_ids:
+                  type: string
+                limit:
+                  type: integer
+                min_score:
+                  type: number
+                  nullable: true
+      responses:
+        '200':
+          description: Resultados
+
+  /api/search/hybrid:
+    post:
+      summary: Busca híbrida (texto + imagem)
+      description: |
+        Deve aceitar texto e imagem na mesma consulta, produzir vetor de consulta híbrido e buscar em bases compatíveis.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [text_query, file, database_ids]
+              properties:
+                text_query:
+                  type: string
+                file:
+                  type: string
+                  format: binary
+                database_ids:
+                  type: string
+                limit:
+                  type: integer
+                min_score:
+                  type: number
+                  nullable: true
+      responses:
+        '200':
+          description: Resultados
