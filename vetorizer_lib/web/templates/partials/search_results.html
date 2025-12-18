@@ -1,0 +1,35 @@
+{% if results.total_results == 0 %}
+<div class="text-center py-8 text-gray-500">
+    <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+    </svg>
+    <p>No results found. Try a different query.</p>
+</div>
+{% else %}
+<div class="text-sm text-gray-500 mb-4">
+    Found {{ results.total_results }} results in {{ results.query_time_ms }}ms
+</div>
+<div class="space-y-4">
+    {% for db_id, db_results in results.results.items() %}
+        {% for result in db_results %}
+        <div class="border rounded-lg p-4 card-hover">
+            <div class="flex justify-between items-start mb-2">
+                <span class="text-xs text-gray-500">{{ result.database_name }}</span>
+                <span class="px-2 py-1 text-xs rounded 
+                    {% if result.score >= 0.8 %}score-high
+                    {% elif result.score >= 0.5 %}score-medium
+                    {% else %}score-low{% endif %}">
+                    {{ (result.score * 100)|round(1) }}%
+                </span>
+            </div>
+            <p class="text-gray-800">{{ result.content }}</p>
+            {% if result.metadata %}
+            <div class="mt-2 text-xs text-gray-400">
+                {{ result.metadata | tojson }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% endfor %}
+</div>
+{% endif %}
