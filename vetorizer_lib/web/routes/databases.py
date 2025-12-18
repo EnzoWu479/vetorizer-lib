@@ -4,7 +4,7 @@ This module provides API endpoints for listing, creating, updating,
 and deleting vector databases.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 
 from vetorizer_lib.web.deps import get_store
 from vetorizer_lib.web.models.metadata_store import MetadataStore
@@ -14,6 +14,9 @@ from vetorizer_lib.web.models.schemas import (
     ErrorResponse,
     ErrorDetail,
     VectorDatabaseResponse,
+    BatchValidationSummary,
+    IngestionResult,
+    IngestMode,
 )
 from vetorizer_lib.web.services.database_service import (
     create_database,
@@ -21,7 +24,9 @@ from vetorizer_lib.web.services.database_service import (
     list_databases,
     update_database_name,
     delete_database,
+    create_database_with_files,
 )
+from vetorizer_lib.web.services.validation_service import validate_file_batch
 
 router = APIRouter(prefix="/api/databases", tags=["databases"])
 
@@ -189,15 +194,6 @@ def delete_database_by_id(
 
 # New endpoints for hybrid ingestion with file upload
 
-from fastapi import File, UploadFile, Form
-from vetorizer_lib.web.models.schemas import (
-    BatchValidationSummary,
-    IngestionResult,
-    IngestMode,
-)
-from vetorizer_lib.web.services.validation_service import validate_file_batch
-
-
 @router.post("/validate", response_model=BatchValidationSummary)
 async def validate_files_for_database(
     ingest_mode: IngestMode = Form(...),
@@ -228,3 +224,97 @@ async def validate_files_for_database(
         await upload_file.seek(0)
     
     return summary
+
+
+@router.post("/create-with-files", response_model=IngestionResult, status_code=201)
+async def create_database_with_upload(
+    name: str = Form(...),
+    ingest_mode: IngestMode = Form(...),
+    files: list[UploadFile] = File(...),
+    text_column: str | None = Form(None),
+    image_column: str | None = Form(None),
+    id_column: str | None = Form(None),
+    metadata_columns: str | None = Form(None),
+    text_embedding_model: str = Form("sentence-transformers/all-MiniLM-L6-v2"),
+    image_embedding_model: str = Form("openai/clip-vit-base-patch16"),
+    store: MetadataStore = Depends(get_store),
+) -> IngestionResult:
+    """Create database and ingest files in single operation.
+    
+    This endpoint validates files, creates the database, and ingests documents
+    transactionally. If ingestion fails, the database is rolled back.
+    
+    Args:
+        name: Database name.
+        ingest_mode: Mode for ingestion (text/image/hybrid).
+        files: Files to upload and ingest.
+        text_column: Column name for text content (required for text/hybrid).
+        image_column: Column name for image paths (required for image/hybrid).
+        id_column: Optional column for document IDs.
+        metadata_columns: Comma-separated list of metadata columns.
+        text_embedding_model: Model for text embeddings.
+        image_embedding_model: Model for image embeddings.
+        store: MetadataStore instance.
+        
+    Returns:
+        IngestionResult with database ID and ingestion statistics.
+        
+    Raises:
+        HTTPException: If validation fails or database name exists.
+    """
+    # Parse metadata columns
+    metadata_cols = None
+    if metadata_columns:
+        metadata_cols = [col.strip() for col in metadata_columns.split(",")]
+    
+    # Prepare files
+    file_handles: list[tuple[str, any]] = []
+    for upload_file in files:
+        file_handles.append((upload_file.filename or "unknown", upload_file.file))
+    
+    # Validate files first
+    validation_summary = await validate_file_batch(file_handles, ingest_mode)
+    
+    if not validation_summary.can_proceed:
+        raise HTTPException(
+            status_code=400,
+            detail=ErrorResponse(
+                error=ErrorDetail(
+                    code="VALIDATION_FAILED",
+                    message=validation_summary.summary_message,
+                    details={"validation": validation_summary.model_dump()},
+                )
+            ).model_dump(),
+        )
+    
+    # Reset file positions after validation
+    for upload_file in files:
+        await upload_file.seek(0)
+    
+    # Create database with files
+    try:
+        database, stats = await create_database_with_files(
+            store=store,
+            name=name,
+            ingest_mode=ingest_mode,
+            files=file_handles,
+            text_column=text_column,
+            image_column=image_column,
+            id_column=id_column,
+            metadata_columns=metadata_cols,
+            text_embedding_model=text_embedding_model,
+            image_embedding_model=image_embedding_model,
+        )
+        
+        return IngestionResult(**stats)
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=409 if "already exists" in str(e) else 400,
+            detail=ErrorResponse(
+                error=ErrorDetail(
+                    code="DATABASE_CREATION_FAILED",
+                    message=str(e),
+                )
+            ).model_dump(),
+        )

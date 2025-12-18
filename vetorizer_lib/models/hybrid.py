@@ -58,9 +58,10 @@ def normalize_vector(vector: list[float]) -> list[float]:
 
 def concat_hybrid_vector(
     parts: HybridVectorParts, 
+    normalize: bool = True,
     normalize_per_modality: bool = True
 ) -> list[float]:
-    """Concatenate text and image vectors with optional per-modality normalization.
+    """Concatenate text and image vectors with optional normalization.
     
     Per-modality normalization ensures balanced contribution from both modalities.
     Without normalization, unnormalized text vectors (L2 norm: 3-8) can dominate
@@ -68,8 +69,10 @@ def concat_hybrid_vector(
 
     Args:
         parts: Text and image vectors.
-        normalize_per_modality: If True, normalize each modality independently
-            before concatenation (recommended). If False, concatenate then normalize.
+        normalize: If True, apply normalization. If False, return raw concatenation.
+        normalize_per_modality: If True and normalize=True, normalize each modality
+            independently before concatenation (recommended). If False, normalize
+            the concatenated vector globally.
 
     Returns:
         Concatenated vector in the order: text then image.
@@ -78,13 +81,22 @@ def concat_hybrid_vector(
         ValueError: If any vector is empty.
 
     Example:
-        >>> concat_hybrid_vector(HybridVectorParts([3.0, 4.0], [1.0, 0.0]), True)
+        >>> # Per-modality normalization (recommended)
+        >>> concat_hybrid_vector(HybridVectorParts([3.0, 4.0], [1.0, 0.0]), True, True)
         [0.6, 0.8, 1.0, 0.0]  # Text normalized, image already normalized
+        
+        >>> # No normalization (legacy)
+        >>> concat_hybrid_vector(HybridVectorParts([3.0, 4.0], [1.0, 0.0]), False)
+        [3.0, 4.0, 1.0, 0.0]
     """
     if not parts.text_vector:
         raise ValueError("text_vector must not be empty")
     if not parts.image_vector:
         raise ValueError("image_vector must not be empty")
+
+    if not normalize:
+        # Raw concatenation without normalization (legacy behavior)
+        return [*parts.text_vector, *parts.image_vector]
 
     if normalize_per_modality:
         # Normalize each modality independently (RECOMMENDED)

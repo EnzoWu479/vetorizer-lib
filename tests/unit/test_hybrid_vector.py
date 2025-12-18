@@ -15,8 +15,10 @@ def test_concat_hybrid_vector_concatenates_in_text_then_image_order(
     sample_text_vector: list[float],
     sample_image_vector: list[float],
 ) -> None:
+    # Test without normalization to verify concatenation order
     result = concat_hybrid_vector(
-        HybridVectorParts(text_vector=sample_text_vector, image_vector=sample_image_vector)
+        HybridVectorParts(text_vector=sample_text_vector, image_vector=sample_image_vector),
+        normalize=False
     )
 
     assert result == [*sample_text_vector, *sample_image_vector]

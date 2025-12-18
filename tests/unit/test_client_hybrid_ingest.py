@@ -28,7 +28,7 @@ def test_ingest_hybrid_csv_embeds_text_and_image_and_concatenates(monkeypatch: p
             )
         ]
 
-    monkeypatch.setattr("vetorizer_lib.client.read_csv_batches", fake_read_csv_batches)
+    monkeypatch.setattr("vetorizer_lib.ingest.csv.read_csv_batches", fake_read_csv_batches)
 
     # Contract: this method will be introduced in US1 implementation.
     result = client.ingest_hybrid_csv(
@@ -45,6 +45,17 @@ def test_ingest_hybrid_csv_embeds_text_and_image_and_concatenates(monkeypatch: p
     assert len(upserted_docs) == 1
 
     doc = upserted_docs[0]
-    assert doc.embedding == [0.1, 0.1, 0.1, 0.3, 0.3]
+    # With per-modality normalization:
+    # Text [0.1, 0.1, 0.1] normalized → [0.577..., 0.577..., 0.577...]
+    # Image [0.3, 0.3] normalized → [0.707..., 0.707...]
+    embedding = doc.embedding
+    assert len(embedding) == 5  # 3 text + 2 image dimensions
+    # Check text part is normalized (all equal values)
+    assert abs(embedding[0] - 0.577) < 0.01
+    assert abs(embedding[1] - 0.577) < 0.01
+    assert abs(embedding[2] - 0.577) < 0.01
+    # Check image part is normalized (all equal values)
+    assert abs(embedding[3] - 0.707) < 0.01
+    assert abs(embedding[4] - 0.707) < 0.01
     assert doc.modalities == ["text", "image"]
     assert doc.composition_metadata == {"hybrid_order": ["text", "image"]}
