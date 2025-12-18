@@ -1,0 +1,234 @@
+<!-- Create Database Modal -->
+<div id="createDatabaseModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Create New Database</h2>
+            <button class="modal-close" onclick="closeCreateDatabaseModal()">&times;</button>
+        </div>
+        
+        <form id="createDatabaseForm" 
+              hx-post="/api/databases/create-with-files" 
+              hx-encoding="multipart/form-data"
+              hx-target="#createDatabaseContent"
+              hx-swap="innerHTML">
+            
+            <!-- Step 1: Basic Configuration -->
+            <div class="modal-section" id="configSection">
+                <h3>Database Configuration</h3>
+                
+                <div class="form-group">
+                    <label for="databaseName">Database Name *</label>
+                    <input type="text" 
+                           id="databaseName" 
+                           name="name" 
+                           placeholder="my-vector-database"
+                           pattern="[a-zA-Z0-9\s\-]+"
+                           required 
+                           class="form-control">
+                    <small class="form-hint">Alphanumeric characters, spaces, and hyphens only</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Ingest Mode *</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" 
+                                   name="ingest_mode" 
+                                   value="text" 
+                                   checked
+                                   onchange="updateModeSelection()">
+                            <span class="radio-option">
+                                <strong>Text Only</strong>
+                                <small>Process text documents (CSV, TXT, JSON)</small>
+                            </span>
+                        </label>
+                        
+                        <label class="radio-label">
+                            <input type="radio" 
+                                   name="ingest_mode" 
+                                   value="image"
+                                   onchange="updateModeSelection()">
+                            <span class="radio-option">
+                                <strong>Image Only</strong>
+                                <small>Process images (JPG, PNG, WEBP)</small>
+                            </span>
+                        </label>
+                        
+                        <label class="radio-label">
+                            <input type="radio" 
+                                   name="ingest_mode" 
+                                   value="hybrid"
+                                   onchange="updateModeSelection()">
+                            <span class="radio-option">
+                                <strong>Hybrid (Text + Image)</strong>
+                                <small>Process documents with text and images</small>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Column Configuration (conditional) -->
+                <div class="form-group" id="columnConfig" style="display: none;">
+                    <label>Column Configuration</label>
+                    
+                    <div id="textColumnGroup" style="display: none;">
+                        <label for="textColumn">Text Column *</label>
+                        <input type="text" 
+                               id="textColumn" 
+                               name="text_column" 
+                               placeholder="content"
+                               class="form-control">
+                    </div>
+                    
+                    <div id="imageColumnGroup" style="display: none;">
+                        <label for="imageColumn">Image Column *</label>
+                        <input type="text" 
+                               id="imageColumn" 
+                               name="image_column" 
+                               placeholder="image_path"
+                               class="form-control">
+                    </div>
+                    
+                    <div>
+                        <label for="idColumn">ID Column (optional)</label>
+                        <input type="text" 
+                               id="idColumn" 
+                               name="id_column" 
+                               placeholder="id"
+                               class="form-control">
+                    </div>
+                    
+                    <div>
+                        <label for="metadataColumns">Metadata Columns (optional)</label>
+                        <input type="text" 
+                               id="metadataColumns" 
+                               name="metadata_columns" 
+                               placeholder="category,author,date"
+                               class="form-control">
+                        <small class="form-hint">Comma-separated column names</small>
+                    </div>
+                </div>
+                
+                <!-- Advanced Configuration (collapsible) -->
+                <div class="form-group">
+                    <button type="button" class="btn-link" onclick="toggleAdvancedConfig()">
+                        <span id="advancedToggleIcon">▶</span> Advanced Configuration
+                    </button>
+                    
+                    <div id="advancedConfig" style="display: none; margin-top: 1rem;">
+                        <div id="textEmbedderConfig" style="display: none;">
+                            <label for="textEmbeddingModel">Text Embedding Model</label>
+                            <input type="text" 
+                                   id="textEmbeddingModel" 
+                                   name="text_embedding_model" 
+                                   value="sentence-transformers/all-MiniLM-L6-v2"
+                                   class="form-control">
+                            <small class="form-hint">HuggingFace model name (384 dimensions)</small>
+                        </div>
+                        
+                        <div id="imageEmbedderConfig" style="display: none; margin-top: 0.5rem;">
+                            <label for="imageEmbeddingModel">Image Embedding Model</label>
+                            <input type="text" 
+                                   id="imageEmbeddingModel" 
+                                   name="image_embedding_model" 
+                                   value="openai/clip-vit-base-patch16"
+                                   class="form-control">
+                            <small class="form-hint">CLIP model name (512 dimensions)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Step 2: File Upload -->
+            <div class="modal-section">
+                <h3>Upload Files</h3>
+                
+                <div class="file-upload-area" 
+                     id="fileUploadArea"
+                     ondrop="handleDrop(event)" 
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)">
+                    <input type="file" 
+                           id="fileInput" 
+                           name="files" 
+                           multiple
+                           accept=".csv,.txt,.json,.jpg,.jpeg,.png,.webp"
+                           onchange="handleFileSelect(event)"
+                           style="display: none;">
+                    
+                    <div class="upload-prompt">
+                        <svg class="upload-icon" viewBox="0 0 24 24" width="48" height="48">
+                            <path fill="currentColor" d="M9 16v-6H5l7-7 7 7h-4v6H9zm-4 4h14v-2H5v2z"/>
+                        </svg>
+                        <p><strong>Drag and drop files here</strong></p>
+                        <p>or</p>
+                        <button type="button" class="btn-secondary" onclick="document.getElementById('fileInput').click()">
+                            Browse Files
+                        </button>
+                        <p class="upload-info" id="uploadInfo">
+                            No files selected
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- File List -->
+                <div id="fileList" class="file-list" style="display: none;">
+                    <!-- Files will be dynamically added here -->
+                </div>
+            </div>
+            
+            <!-- Validation Results (initially hidden) -->
+            <div id="validationResults" class="modal-section" style="display: none;">
+                <h3>Validation Results</h3>
+                <div id="validationSummary" class="validation-summary">
+                    <!-- Summary will be dynamically added here -->
+                </div>
+                
+                <div id="validationDetails" class="validation-details" style="display: none;">
+                    <!-- Detailed validation results per file -->
+                </div>
+            </div>
+            
+            <!-- Ingestion Progress (initially hidden) -->
+            <div id="ingestionProgress" class="modal-section" style="display: none;">
+                <h3>Creating Database...</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <p class="progress-text" id="progressText">Initializing...</p>
+            </div>
+            
+            <!-- Final Results (initially hidden) -->
+            <div id="finalResults" class="modal-section" style="display: none;">
+                <h3>Database Created Successfully!</h3>
+                <div id="finalStats" class="final-stats">
+                    <!-- Final statistics will be dynamically added here -->
+                </div>
+            </div>
+            
+            <!-- Modal Actions -->
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="closeCreateDatabaseModal()">
+                    Cancel
+                </button>
+                <button type="button" 
+                        id="validateButton" 
+                        class="btn-primary" 
+                        onclick="validateFiles()"
+                        disabled>
+                    Validate Files
+                </button>
+                <button type="submit" 
+                        id="createButton" 
+                        class="btn-primary" 
+                        style="display: none;"
+                        disabled>
+                    Create Database
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Content target for HTMX responses -->
+<div id="createDatabaseContent" style="display: none;"></div>

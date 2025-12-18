@@ -69,40 +69,40 @@
 
 #### Backend Models & Schemas
 
-- [ ] T016 [P] [US0] Extend DatabaseMetadata model with ingest_mode, embedder configs, hybrid metadata in vetorizer_lib/web/models/database.py
-- [ ] T017 [P] [US0] Add FileValidationResult schema with filename, status, errors, warnings in vetorizer_lib/web/models/schemas.py
+- [X] T016 [P] [US0] Extend DatabaseMetadata model with ingest_mode, embedder configs, hybrid metadata in vetorizer_lib/web/models/database.py
+- [X] T017 [P] [US0] Add FileValidationResult schema with filename, status, errors, warnings in vetorizer_lib/web/models/schemas.py
 
 #### Backend Services
 
-- [ ] T018 [US0] Implement batch file validation in vetorizer_lib/web/services/validation_service.py (parallel validation, max 5 concurrent)
-- [ ] T019 [US0] Extend DatabaseService.create_database() to support hybrid mode with embedder config in vetorizer_lib/web/services/database_service.py
-- [ ] T020 [US0] Implement transactional database creation + ingestion in vetorizer_lib/web/services/database_service.py
-- [ ] T021 [US0] Add rollback logic for failed ingestion in vetorizer_lib/web/services/database_service.py
+- [X] T018 [US0] Implement batch file validation in vetorizer_lib/web/services/validation_service.py (parallel validation, max 5 concurrent)
+- [X] T019 [US0] Extend DatabaseService.create_database() to support hybrid mode with embedder config in vetorizer_lib/web/services/database_service.py
+- [X] T020 [US0] Implement transactional database creation + ingestion in vetorizer_lib/web/services/database_service.py
+- [X] T021 [US0] Add rollback logic for failed ingestion in vetorizer_lib/web/services/database_service.py
 
 #### Backend Routes
 
-- [ ] T022 [US0] Create POST /api/databases endpoint with multipart support in vetorizer_lib/web/routes/databases.py
-- [ ] T023 [US0] Create POST /api/databases/validate endpoint for pre-validation in vetorizer_lib/web/routes/databases.py
-- [ ] T024 [US0] Add validation summary response formatting in vetorizer_lib/web/routes/databases.py
+- [X] T022 [US0] Create POST /api/databases endpoint with multipart support in vetorizer_lib/web/routes/databases.py
+- [X] T023 [US0] Create POST /api/databases/validate endpoint for pre-validation in vetorizer_lib/web/routes/databases.py
+- [X] T024 [US0] Add validation summary response formatting in vetorizer_lib/web/routes/databases.py
 
 #### Frontend UI Components
 
-- [ ] T025 [P] [US0] Create create_database_modal.html partial with modal structure in vetorizer_lib/web/templates/partials/
-- [ ] T026 [P] [US0] Add radio button mode selection (Text/Image/Hybrid) to create_database_modal.html
-- [ ] T027 [P] [US0] Add collapsible advanced section with embedder config in create_database_modal.html
-- [ ] T028 [P] [US0] Add file upload area with drag-and-drop in create_database_modal.html
-- [ ] T029 [US0] Add validation summary display component to create_database_modal.html (shows X processed, Y ignored, Z failed)
-- [ ] T030 [US0] Add per-file validation details expandable accordion in create_database_modal.html
-- [ ] T031 [US0] Add final result statistics display in create_database_modal.html
+- [X] T025 [P] [US0] Create create_database_modal.html partial with modal structure in vetorizer_lib/web/templates/partials/
+- [X] T026 [P] [US0] Add radio button mode selection (Text/Image/Hybrid) to create_database_modal.html
+- [X] T027 [P] [US0] Add collapsible advanced section with embedder config in create_database_modal.html
+- [X] T028 [P] [US0] Add file upload area with drag-and-drop in create_database_modal.html
+- [X] T029 [US0] Add validation summary display component to create_database_modal.html (shows X processed, Y ignored, Z failed)
+- [X] T030 [US0] Add per-file validation details expandable accordion in create_database_modal.html
+- [X] T031 [US0] Add final result statistics display in create_database_modal.html
 
 #### Frontend Integration
 
-- [ ] T032 [US0] Add "Create New Database" button to vetorizer_lib/web/templates/index.html home page
-- [ ] T033 [US0] Wire modal open/close with HTMX in vetorizer_lib/web/templates/index.html
-- [ ] T034 [US0] Add modal styling to vetorizer_lib/web/static/css/styles.css (overlay, focus trap, ARIA)
-- [ ] T035 [US0] Implement form submission with progress indicator using HTMX in create_database_modal.html
-- [ ] T036 [US0] Add client-side validation and error display in create_database_modal.html
-- [ ] T037 [US0] Add success toast notification after database creation in vetorizer_lib/web/templates/partials/toast.html
+- [X] T032 [US0] Add "Create New Database" button to vetorizer_lib/web/templates/index.html home page
+- [X] T033 [US0] Wire modal open/close with HTMX in vetorizer_lib/web/templates/index.html
+- [X] T034 [US0] Add modal styling to vetorizer_lib/web/static/css/styles.css (overlay, focus trap, ARIA)
+- [X] T035 [US0] Implement form submission with progress indicator using HTMX in create_database_modal.html
+- [X] T036 [US0] Add client-side validation and error display in create_database_modal.html
+- [X] T037 [US0] Add success toast notification after database creation in vetorizer_lib/web/templates/partials/toast.html
 
 **Checkpoint**: User Story 0 complete - users can create hybrid databases via UI with full validation and feedback
 

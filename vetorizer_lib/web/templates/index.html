@@ -4,39 +4,29 @@
 
 {% block content %}
 <div class="max-w-6xl mx-auto">
-    <h1 class="text-3xl font-bold text-gray-800 mb-8">Vector Database Management</h1>
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">Vector Database Management</h1>
+        <button onclick="openCreateDatabaseModal()" class="btn-primary">
+            <span style="margin-right: 0.5rem;">➕</span> Create New Database
+        </button>
+    </div>
     
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <!-- Upload Form -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold text-gray-700 mb-4">Create New Database</h2>
-            {% include "partials/upload_form.html" %}
-        </div>
-        
-        <!-- Database List -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold text-gray-700 mb-4">Your Databases</h2>
-            <div id="database-list"
-                 hx-get="/api/databases"
-                 hx-trigger="load, databaseCreated from:body"
-                 hx-swap="innerHTML">
-                <div class="flex justify-center py-8">
-                    <div class="spinner"></div>
-                </div>
+    <!-- Database List -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">Your Databases</h2>
+        <div id="database-list"
+             hx-get="/api/databases"
+             hx-trigger="load, databaseCreated from:body"
+             hx-swap="innerHTML">
+            <div class="flex justify-center py-8">
+                <div class="spinner"></div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Upload Progress Modal -->
-<div id="upload-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-        <h3 class="text-lg font-semibold text-gray-800 mb-4">Processing Upload</h3>
-        <div id="upload-progress-container">
-            {% include "partials/upload_progress.html" %}
-        </div>
-    </div>
-</div>
+<!-- Create Database Modal -->
+{% include "partials/create_database_modal.html" %}
 {% endblock %}
 
 {% block scripts %}
