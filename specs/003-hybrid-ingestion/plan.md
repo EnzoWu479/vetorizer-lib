@@ -1,25 +1,25 @@
-# Implementation Plan: Ingestão Híbrida (Texto/Imagem)
+# Implementation Plan: [FEATURE]
 
-**Branch**: `003-hybrid-ingestion` | **Date**: 2025-12-18 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `/specs/003-hybrid-ingestion/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
 ## Summary
 
-Enable hybrid (text + image) ingestion by allowing users to create databases via UI home page with mode selection (text only / image only / hybrid). System generates hybrid vectors by concatenating text and image embeddings deterministically. UI provides modal/form for database creation with name, mode selection (radio buttons), file upload, and advanced embedder configuration (collapsible). Validation summary shows detailed file status before proceeding. Single-step operation creates database and ingests documents transactionally.
+Enable hybrid ingestion mode that combines text and image embeddings through vector concatenation. Users can select ingestion mode (text-only, image-only, or hybrid) when creating databases via the web UI. All modes start with CSV upload: text mode processes CSV with (text, label) columns, image mode processes CSV with (image_path, label) columns, and hybrid mode processes CSV referencing documents/images/PDFs containing both modalities. The system validates files, creates databases, and performs ingestion in a single transactional operation.
 
 ## Technical Context
 
-**Language/Version**: Python 3.10+ (>=3.10 per pyproject.toml)  
-**Primary Dependencies**: FastAPI (web framework), sentence-transformers (text embeddings), transformers (CLIP models), Pillow (image processing), qdrant-client (vector storage), Jinja2 (templates), HTMX (dynamic UI)  
-**Storage**: Qdrant vector database (file-based persistence for vectors and metadata)  
+**Language/Version**: Python 3.10+ (uv-managed)  
+**Primary Dependencies**: FastAPI, Jinja2, HTMX, Tailwind CSS (CDN), sentence-transformers, transformers, torch, Pillow, qdrant-client  
+**Storage**: Qdrant vector database (file-based or remote) for vectors AND metadata  
 **Testing**: pytest with pytest-asyncio, pytest-cov  
-**Target Platform**: Modern web browsers (Chrome, Firefox, Safari, Edge), cross-platform server (Linux, macOS, Windows)  
-**Project Type**: Python library with integrated web UI (single project structure)  
+**Target Platform**: Modern web browsers + Python backend (cross-platform: Linux, macOS, Windows)  
+**Project Type**: Web application (Python library with integrated web UI, CLI-launchable)  
 **Performance Goals**: <2s search response, <3min CSV ingestion for 10K rows, <200ms API p95  
-**Constraints**: 100MB max file upload, 10 concurrent users, memory-bounded ingestion  
-**Scale/Scope**: Single-server deployment, up to 100K documents per database, 100+ documents per upload batch
+**Constraints**: 100MB max CSV upload, 10 concurrent users, deterministic vector concatenation  
+**Scale/Scope**: Single-server deployment, up to 100K documents per database, 3 ingestion modes
 
 ## Constitution Check
 
@@ -27,17 +27,18 @@ Enable hybrid (text + image) ingestion by allowing users to create databases via
 
 | Principle | Status | Notes |
 |-----------|--------|-------|
-| I. Code Quality & Testability | PASS | Type hints required on all functions (text/image embedder integration, hybrid vector concatenation). Dependency injection for embedder models. Pure functions for vector concatenation logic. |
-| II. Testing Standards | PASS | TDD approach mandatory. Unit tests for hybrid vector concatenation, validation logic. Integration tests for end-to-end database creation + upload. Contract tests for new API endpoints. |
-| III. User Experience Consistency | PASS | Modal/form follows existing UI patterns. Radio buttons for mode selection aligns with web standards. Validation summary with detailed feedback matches constitution requirements. Loading indicators for upload/processing. |
-| IV. Performance Requirements | PASS | <200ms API p95 maintained. File validation before processing prevents wasted computation. Progress indicators for uploads. Batched processing for documents. |
-| V. Documentation Standards | PASS | Google-style docstrings for all new functions. README updated with hybrid ingestion examples. API endpoints documented in OpenAPI schema. |
+| I. Code Quality & Testability | PASS | Type hints required, dependency injection pattern, modular embedder system |
+| II. Testing Standards | PASS | TDD approach with unit + integration + contract tests, test CSV fixtures for all modes |
+| III. User Experience Consistency | PASS | HTMX + Tailwind UI, clear mode selection, inline help text, validation feedback |
+| IV. Performance Requirements | PASS | <200ms p95 API, <3min ingestion for 10K rows, streaming/batching for memory efficiency |
+| V. Documentation Standards | PASS | Google-style docstrings, inline CSV format help, mode-specific examples |
 
 **Quality Gates**:
-- Linting: ruff (Python) - all new code must pass
-- Type Safety: mypy (Python) - strict mode with no `Any` types
-- Testing: pytest with >90% coverage for new code
-- Documentation: All public APIs documented with examples
+- Linting: ruff (Python)
+- Type Safety: mypy with strict mode
+- Testing: pytest with coverage >80%
+- Documentation: All public APIs and UI flows documented
+- Validation: Pre-ingest file validation with detailed feedback
 
 ## Project Structure
 
@@ -57,66 +58,85 @@ specs/[###-feature]/
 
 ```text
 vetorizer_lib/
-├── __init__.py                    # Existing - may need hybrid exports
-├── client.py                      # Existing - EXTEND for hybrid mode
-├── models/
-│   ├── __init__.py               # Existing
-│   ├── hybrid.py                 # EXISTING - HybridVector class
-│   ├── config.py                 # Existing - may need hybrid config
-│   └── document.py               # Existing
-├── embedders/
-│   ├── __init__.py               # Existing
-│   ├── base.py                   # Existing
-│   ├── text.py                   # Existing - TextEmbedder
-│   └── image.py                  # Existing - ImageEmbedder
-├── ingest/
-│   ├── __init__.py               # Existing
-│   └── csv.py                    # EXTEND for hybrid ingestion
-├── web/
-│   ├── __init__.py               # Existing
-│   ├── app.py                    # Existing
-│   ├── models/
-│   │   ├── __init__.py           # Existing
-│   │   ├── schemas.py            # EXTEND - add CreateDatabaseRequest, ValidationSummary
-│   │   └── metadata_store.py    # EXTEND - add hybrid mode support
-│   ├── routes/
-│   │   ├── __init__.py           # Existing
-│   │   ├── databases.py          # EXTEND - add create endpoint with hybrid support
-│   │   ├── upload.py             # EXTEND - hybrid validation logic
-│   │   └── search.py             # EXTEND - hybrid search support
-│   ├── services/
-│   │   ├── __init__.py           # Existing
-│   │   ├── database_service.py   # EXTEND - hybrid database creation
-│   │   └── upload_service.py     # EXTEND - hybrid file validation
-│   ├── templates/
-│   │   ├── index.html            # EXTEND - add "Create Database" button/modal
-│   │   └── partials/
-│   │       └── create_database_modal.html  # NEW - database creation form
-│   └── static/
-│       ├── css/
-│       │   └── styles.css        # EXTEND - modal styling
-│       └── js/
-│           └── htmx.min.js       # Existing
+├── __init__.py              # Existing - exports client
+├── client.py                # EXISTING - VetorizerClient (may need updates)
+├── exceptions.py            # EXISTING
+├── embedders/               # EXISTING - UPDATE for hybrid mode
+│   ├── __init__.py
+│   ├── base.py              # BaseEmbedder interface
+│   ├── text.py              # TextEmbedder (sentence-transformers)
+│   └── image.py             # ImageEmbedder (CLIP)
+├── models/                  # EXISTING - ADD HybridVector model
+│   ├── __init__.py
+│   ├── config.py            # Configuration models
+│   ├── document.py          # Document model
+│   └── hybrid.py            # NEW: HybridVector, IngestMode enum
+├── ingest/                  # EXISTING - UPDATE for hybrid ingestion
+│   ├── __init__.py
+│   └── csv.py               # CSV ingestion with mode selection
+├── stores/                  # EXISTING
+│   ├── __init__.py
+│   ├── base.py              # VectorStore interface
+│   └── qdrant.py            # QdrantVectorStore implementation
+└── web/                     # EXISTING WEB UI
+    ├── __init__.py
+    ├── app.py               # FastAPI app
+    ├── cli.py               # CLI entry point
+    ├── config.py            # Web settings
+    ├── deps.py              # Dependency injection
+    ├── routes/              # API routes
+    │   ├── __init__.py
+    │   ├── databases.py     # UPDATE: Add validation endpoint
+    │   ├── upload.py        # UPDATE: Handle hybrid ingestion
+    │   ├── search.py        # UPDATE: Support hybrid search
+    │   └── config.py        # Config endpoints
+    ├── services/            # Business logic
+    │   ├── __init__.py
+    │   ├── database_service.py  # UPDATE: Create with mode
+    │   ├── upload_service.py    # UPDATE: Mode-aware ingestion
+    │   └── search_service.py    # UPDATE: Hybrid search
+    ├── models/              # Web-specific models
+    │   ├── __init__.py
+    │   ├── schemas.py       # UPDATE: Add IngestMode, validation responses
+    │   └── metadata_store.py
+    ├── templates/           # Jinja2 templates
+    │   ├── base.html        # EXISTING
+    │   ├── index.html       # EXISTING
+    │   ├── search.html      # UPDATE: Hybrid search UI
+    │   └── partials/
+    │       ├── create_database_modal.html  # EXISTING - UPDATED for CSV-only + mode descriptions
+    │       └── [other partials]
+    ├── static/              # Static assets
+    │   ├── css/
+    │   │   └── styles.css   # Tailwind customizations
+    │   └── js/
+    │       ├── htmx.min.js
+    │       └── create_database_modal.js  # EXISTING - UPDATE validation logic
+    └── [other web files]
 
 tests/
+├── conftest.py              # EXISTING - ADD hybrid fixtures
 ├── unit/
-│   ├── test_hybrid_vector.py        # EXISTING - may need expansion
-│   ├── test_client_hybrid_ingest.py # EXISTING - expand for new modes
+│   ├── test_embedders.py    # EXISTING
+│   ├── test_models.py       # UPDATE: Test HybridVector
+│   ├── test_hybrid_vector.py # NEW: Hybrid concatenation tests
+│   ├── test_ingest.py       # UPDATE: Mode-specific ingestion
 │   └── web/
-│       ├── test_database_service.py # NEW - database creation logic
-│       └── test_validation.py       # NEW - file validation logic
+│       └── [web unit tests] # UPDATE: Modal, validation
 ├── integration/
+│   ├── test_qdrant.py       # EXISTING
+│   ├── test_client_hybrid_ingest.py  # NEW: End-to-end hybrid ingestion
 │   └── web/
-│       ├── test_create_database.py  # NEW - end-to-end database creation
-│       └── test_hybrid_upload.py    # NEW - hybrid upload workflow
+│       └── [web integration tests]  # UPDATE: Full flow tests
 └── contract/
-    └── test_api.py                   # EXTEND - new database creation endpoints
+    └── test_api.py          # UPDATE: New validation endpoint
+
+pyproject.toml               # EXISTING - dependencies already in place
+README.md                    # UPDATE: Document hybrid mode
+CHANGELOG.md                 # UPDATE: Add 003-hybrid-ingestion entry
 ```
 
-**Structure Decision**: Single Python library with integrated web UI. Extends existing vetorizer_lib structure with hybrid ingestion capabilities. Focus on:
-- **Core layer**: HybridVector already exists, extend CSV ingestion and client
-- **Web layer**: New UI modal, extend routes/services for database creation
-- **Tests**: New test files for database creation workflow, extend existing contract tests
+**Structure Decision**: Integrated Python web application extending existing vetorizer_lib. Uses FastAPI + Jinja2 + HTMX + Tailwind CSS for UI. Hybrid ingestion extends existing embedder system with concatenation strategy. All ingestion modes start with CSV upload following domain-specific column structure.
 
 ## Complexity Tracking
 
