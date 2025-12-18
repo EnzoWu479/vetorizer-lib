@@ -1,0 +1,622 @@
+openapi: 3.1.0
+info:
+  title: Vetorizer Web GUI API
+  description: REST API for vector database management, CSV ingestion, and semantic search
+  version: 1.0.0
+  contact:
+    name: Vetorizer Team
+
+servers:
+  - url: http://localhost:8000/api
+    description: Local development server
+
+tags:
+  - name: databases
+    description: Vector database management operations
+  - name: upload
+    description: CSV file upload and ingestion
+  - name: search
+    description: Vector similarity search operations
+
+paths:
+  /databases:
+    get:
+      tags: [databases]
+      summary: List all vector databases
+      operationId: listDatabases
+      responses:
+        '200':
+          description: List of vector databases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VectorDatabase'
+    
+    post:
+      tags: [databases]
+      summary: Create a new vector database
+      operationId: createDatabase
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDatabaseRequest'
+      responses:
+        '201':
+          description: Database created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VectorDatabase'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Database name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /databases/{databaseId}:
+    parameters:
+      - name: databaseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Database unique identifier
+    
+    get:
+      tags: [databases]
+      summary: Get database details
+      operationId: getDatabase
+      responses:
+        '200':
+          description: Database details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VectorDatabase'
+        '404':
+          description: Database not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    patch:
+      tags: [databases]
+      summary: Update database (rename)
+      operationId: updateDatabase
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDatabaseRequest'
+      responses:
+        '200':
+          description: Database updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VectorDatabase'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Database not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: New name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    delete:
+      tags: [databases]
+      summary: Delete a database
+      operationId: deleteDatabase
+      responses:
+        '204':
+          description: Database deleted successfully
+        '404':
+          description: Database not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /upload:
+    post:
+      tags: [upload]
+      summary: Upload CSV and create/update database
+      operationId: uploadCSV
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - database_name
+                - content_column
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV file to upload (max 100MB)
+                database_name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: Name for the vector database
+                content_column:
+                  type: string
+                  description: CSV column containing text to embed
+                id_column:
+                  type: string
+                  description: CSV column for document IDs (optional)
+                metadata_columns:
+                  type: string
+                  description: Comma-separated list of metadata columns (optional)
+                overwrite:
+                  type: boolean
+                  default: false
+                  description: Overwrite if database exists
+      responses:
+        '202':
+          description: Upload accepted, processing started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadJob'
+        '400':
+          description: Invalid file or parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Database exists and overwrite=false
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: File too large (>100MB)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /upload/{jobId}:
+    parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Upload job identifier
+    
+    get:
+      tags: [upload]
+      summary: Get upload job status
+      operationId: getUploadStatus
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadJob'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /upload/{jobId}/progress:
+    parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Upload job identifier
+    
+    get:
+      tags: [upload]
+      summary: Stream upload progress (SSE)
+      operationId: streamUploadProgress
+      responses:
+        '200':
+          description: Server-Sent Events stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  SSE events:
+                  - event: progress, data: {"percent": 50, "processed": 500}
+                  - event: completed, data: {"total": 1000}
+                  - event: error, data: {"message": "Error details"}
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /search:
+    post:
+      tags: [search]
+      summary: Search vector databases
+      operationId: search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400':
+          description: Invalid search request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: One or more databases not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /search/image:
+    post:
+      tags: [search]
+      summary: Search by image upload
+      operationId: searchByImage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+                - database_ids
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: Image file (JPG, PNG, WebP)
+                database_ids:
+                  type: string
+                  description: Comma-separated database IDs (1-4)
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 10
+                min_score:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400':
+          description: Invalid image or parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /columns:
+    post:
+      tags: [upload]
+      summary: Preview CSV columns
+      operationId: previewColumns
+      description: Upload a CSV file to get column names for selection
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV file to analyze
+      responses:
+        '200':
+          description: Column information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ColumnPreview'
+        '400':
+          description: Invalid CSV file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    VectorDatabase:
+      type: object
+      required:
+        - id
+        - name
+        - collection_name
+        - document_count
+        - embedding_model
+        - embedding_dimension
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        collection_name:
+          type: string
+        document_count:
+          type: integer
+        embedding_model:
+          type: string
+        embedding_dimension:
+          type: integer
+        status:
+          type: string
+          enum: [CREATING, READY, UPDATING, DELETING, FAILED]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateDatabaseRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '^[a-zA-Z0-9][a-zA-Z0-9 -]*[a-zA-Z0-9]$'
+
+    UpdateDatabaseRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '^[a-zA-Z0-9][a-zA-Z0-9 -]*[a-zA-Z0-9]$'
+
+    UploadJob:
+      type: object
+      required:
+        - id
+        - database_id
+        - filename
+        - file_size_bytes
+        - content_column
+        - status
+        - progress_percent
+        - documents_processed
+        - documents_failed
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        database_id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        file_size_bytes:
+          type: integer
+        content_column:
+          type: string
+        id_column:
+          type: string
+          nullable: true
+        metadata_columns:
+          type: array
+          items:
+            type: string
+          nullable: true
+        status:
+          type: string
+          enum: [PENDING, PROCESSING, COMPLETED, FAILED]
+        progress_percent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        documents_processed:
+          type: integer
+        documents_failed:
+          type: integer
+        error_message:
+          type: string
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    SearchRequest:
+      type: object
+      required:
+        - database_ids
+        - query_type
+        - query_content
+      properties:
+        database_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+          maxItems: 4
+        query_type:
+          type: string
+          enum: [text, image]
+        query_content:
+          type: string
+          minLength: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+        min_score:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+
+    SearchResponse:
+      type: object
+      required:
+        - query_id
+        - results
+        - total_results
+        - query_time_ms
+      properties:
+        query_id:
+          type: string
+          format: uuid
+        results:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/SearchResult'
+        total_results:
+          type: integer
+        query_time_ms:
+          type: integer
+
+    SearchResult:
+      type: object
+      required:
+        - id
+        - content
+        - score
+        - database_id
+        - database_name
+      properties:
+        id:
+          type: string
+        content:
+          type: string
+        score:
+          type: number
+          minimum: 0
+          maximum: 1
+        metadata:
+          type: object
+          nullable: true
+        database_id:
+          type: string
+          format: uuid
+        database_name:
+          type: string
+
+    ColumnPreview:
+      type: object
+      required:
+        - columns
+        - row_count
+        - sample_rows
+      properties:
+        columns:
+          type: array
+          items:
+            type: string
+        row_count:
+          type: integer
+        sample_rows:
+          type: array
+          items:
+            type: object
+          maxItems: 5
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              enum:
+                - VALIDATION_ERROR
+                - NOT_FOUND
+                - DUPLICATE_NAME
+                - FILE_TOO_LARGE
+                - INVALID_FILE
+                - PROCESSING_ERROR
+                - INTERNAL_ERROR
+            message:
+              type: string
+            details:
+              type: object
+              nullable: true
