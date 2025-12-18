@@ -9,6 +9,10 @@ let validationResult = null;
  */
 function openCreateDatabaseModal() {
     const modal = document.getElementById('createDatabaseModal');
+    if (!modal) {
+        console.error('Modal element not found!');
+        return;
+    }
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     resetModal();
