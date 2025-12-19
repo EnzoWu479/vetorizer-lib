@@ -91,11 +91,13 @@ class IngestConfig:
 
     Args:
         file_path: Path to the CSV file.
-        content_column: Column containing content to embed.
+        content_column: Column containing content to embed (text content for text/hybrid mode).
         id_column: Column for document IDs. Auto-generates UUIDs if None.
         metadata_columns: Additional columns to store as metadata.
         batch_size: Number of documents to process per batch.
         skip_empty: Skip rows where content_column is empty.
+        image_column: Column containing image paths (required for image/hybrid mode).
+        base_path: Base directory for resolving relative paths in image_column.
 
     Example:
         >>> config = IngestConfig(
@@ -105,6 +107,13 @@ class IngestConfig:
         ... )
         >>> print(config.batch_size)
         100
+        >>> # Hybrid mode example
+        >>> hybrid_config = IngestConfig(
+        ...     file_path="data.csv",
+        ...     content_column="text",
+        ...     image_column="image_path",
+        ...     batch_size=32
+        ... )
     """
 
     file_path: str
@@ -113,3 +122,5 @@ class IngestConfig:
     metadata_columns: list[str] = field(default_factory=list)
     batch_size: int = 100
     skip_empty: bool = True
+    image_column: str | None = None
+    base_path: str | None = None

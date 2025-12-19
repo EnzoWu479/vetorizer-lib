@@ -27,9 +27,15 @@ class TextEmbedder:
 
     DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
-    def __init__(self, model_name: str | None = None) -> None:
-        """Initialize the text embedder with specified model."""
+    def __init__(self, model_name: str | None = None, normalize: bool = True) -> None:
+        """Initialize the text embedder with specified model.
+        
+        Args:
+            model_name: HuggingFace model identifier. Uses default if None.
+            normalize: Whether to normalize embeddings to unit length (L2 norm).
+        """
         self._model_name = model_name or self.DEFAULT_MODEL
+        self._normalize = normalize
         try:
             self._model = SentenceTransformer(self._model_name)
         except Exception as e:
@@ -68,6 +74,7 @@ class TextEmbedder:
 
         Returns:
             List of embedding vectors, one per input text.
+            Vectors are normalized to unit length if normalize=True.
 
         Example:
             >>> embedder = TextEmbedder()
@@ -78,7 +85,11 @@ class TextEmbedder:
         if not texts:
             return []
 
-        embeddings = self._model.encode(texts, convert_to_numpy=True)
+        embeddings = self._model.encode(
+            texts, 
+            convert_to_numpy=True,
+            normalize_embeddings=self._normalize
+        )
         return [vec.tolist() for vec in embeddings]
 
     def embed_image(self, image_paths: list[str]) -> list[list[float]]:

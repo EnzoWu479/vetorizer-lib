@@ -63,6 +63,18 @@ def read_csv_batches(
             f"Available columns: {', '.join(sorted(columns))}"
         )
 
+    # Validate image column for image/hybrid modes
+    if content_type in (ContentType.IMAGE, ContentType.HYBRID):
+        if not config.image_column:
+            raise ConfigurationError(
+                f"image_column is required for {content_type.value} mode"
+            )
+        if config.image_column not in columns:
+            raise ConfigurationError(
+                f"Image column '{config.image_column}' not found in CSV. "
+                f"Available columns: {', '.join(sorted(columns))}"
+            )
+
     # Validate id column if specified
     if config.id_column and config.id_column not in columns:
         raise ConfigurationError(
@@ -88,15 +100,51 @@ def read_csv_batches(
         documents: list[Document] = []
 
         for _, row in chunk.iterrows():
-            content = row[config.content_column]
+            # Handle text content for TEXT and HYBRID modes
+            if content_type in (ContentType.TEXT, ContentType.HYBRID):
+                content = row[config.content_column]
 
-            # Handle empty content
-            if pd.isna(content) or str(content).strip() == "":
-                if config.skip_empty:
-                    continue
-                content = ""
+                # Handle empty text content
+                if pd.isna(content) or str(content).strip() == "":
+                    if config.skip_empty:
+                        continue
+                    content = ""
+                else:
+                    content = str(content)
             else:
-                content = str(content)
+                # IMAGE mode: content is the image path
+                content = row.get(config.image_column) if config.image_column else ""
+
+            # Handle image path for IMAGE and HYBRID modes
+            if content_type in (ContentType.IMAGE, ContentType.HYBRID):
+                image_path_str = row.get(config.image_column, "")
+                
+                # Skip if image path is empty
+                if pd.isna(image_path_str) or str(image_path_str).strip() == "":
+                    if config.skip_empty:
+                        continue
+                
+                # Resolve image path
+                image_path = Path(str(image_path_str).strip())
+                if config.base_path and not image_path.is_absolute():
+                    image_path = Path(config.base_path) / image_path
+                
+                # Skip if image file doesn't exist
+                if not image_path.exists():
+                    if config.skip_empty:
+                        continue
+                
+                # Skip if image can't be opened (corrupted)
+                if config.skip_empty:
+                    try:
+                        from PIL import Image
+                        Image.open(image_path).close()
+                    except Exception:
+                        continue
+                
+                # For IMAGE mode, content is the absolute path
+                if content_type == ContentType.IMAGE:
+                    content = str(image_path.absolute())
 
             # Get or generate ID
             if config.id_column:
@@ -110,6 +158,15 @@ def read_csv_batches(
                 value = row[col]
                 if not pd.isna(value):
                     metadata[col] = value
+            
+            # Add image_path to metadata for HYBRID mode
+            if content_type == ContentType.HYBRID and config.image_column:
+                image_path_value = row.get(config.image_column)
+                if not pd.isna(image_path_value):
+                    resolved_path = Path(str(image_path_value).strip())
+                    if config.base_path and not resolved_path.is_absolute():
+                        resolved_path = Path(config.base_path) / resolved_path
+                    metadata["image_path"] = str(resolved_path.absolute())
 
             doc = Document(
                 id=doc_id,

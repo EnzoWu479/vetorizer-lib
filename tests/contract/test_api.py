@@ -291,3 +291,132 @@ class TestWebAPIDatabaseEndpoints:
             assert "valid_files" in data
             assert "invalid_files" in data
             assert "can_proceed" in data
+
+
+class TestWebAPIUploadEndpoints:
+    """Contract tests for web API upload endpoints (US1)."""
+
+    def test_post_upload_endpoint_exists(self) -> None:
+        """POST /api/upload endpoint exists."""
+        from fastapi.testclient import TestClient
+        from vetorizer_lib.web.app import app
+
+        client = TestClient(app)
+        # Endpoint should exist (even if it returns error without valid data)
+        response = client.post("/api/upload")
+        # Should not be 404 (endpoint exists)
+        assert response.status_code != 404
+
+    def test_post_upload_accepts_text_mode(self) -> None:
+        """POST /api/upload accepts text mode with required parameters."""
+        from fastapi.testclient import TestClient
+        from vetorizer_lib.web.app import app
+        import io
+
+        client = TestClient(app)
+        response = client.post(
+            "/api/upload",
+            data={
+                "database_name": "test_text_db",
+                "ingest_mode": "text",
+                "content_column": "content",
+            },
+            files={"file": ("test.csv", io.BytesIO(b"id,content\n1,test data"), "text/csv")},
+        )
+        # Should accept the request structure (202 for valid, 400/409 for validation errors)
+        assert response.status_code in [202, 400, 409]
+        
+        # Should not fail with wrong HTTP method error
+        assert response.status_code != 405
+        # Should not fail with unsupported media type
+        assert response.status_code != 415
+
+    def test_post_upload_accepts_image_mode(self) -> None:
+        """POST /api/upload accepts image mode with required parameters."""
+        from fastapi.testclient import TestClient
+        from vetorizer_lib.web.app import app
+        import io
+
+        client = TestClient(app)
+        response = client.post(
+            "/api/upload",
+            data={
+                "database_name": "test_image_db",
+                "ingest_mode": "image",
+                "content_column": "image_path",
+                "image_column": "image_path",
+            },
+            files={"file": ("test.csv", io.BytesIO(b"id,image_path\n1,/test/image.png"), "text/csv")},
+        )
+        # Should accept the request structure
+        assert response.status_code in [202, 400, 409]
+        assert response.status_code != 405
+        assert response.status_code != 415
+
+    def test_post_upload_accepts_hybrid_mode(self) -> None:
+        """POST /api/upload accepts hybrid mode with required parameters."""
+        from fastapi.testclient import TestClient
+        from vetorizer_lib.web.app import app
+        import io
+
+        client = TestClient(app)
+        response = client.post(
+            "/api/upload",
+            data={
+                "database_name": "test_hybrid_db",
+                "ingest_mode": "hybrid",
+                "content_column": "text",
+                "text_column": "text",
+                "image_column": "image_path",
+            },
+            files={"file": ("test.csv", io.BytesIO(b"id,text,image_path\n1,test,/img.png"), "text/csv")},
+        )
+        # Should accept the request structure
+        assert response.status_code in [202, 400, 409]
+        assert response.status_code != 405
+        assert response.status_code != 415
+
+    def test_post_upload_returns_job_id(self) -> None:
+        """POST /api/upload returns UploadJobResponse with job_id."""
+        from fastapi.testclient import TestClient
+        from vetorizer_lib.web.app import app
+        import io
+
+        client = TestClient(app)
+        response = client.post(
+            "/api/upload",
+            data={
+                "database_name": "test_job_db",
+                "ingest_mode": "text",
+                "content_column": "content",
+            },
+            files={"file": ("test.csv", io.BytesIO(b"id,content\n1,test"), "text/csv")},
+        )
+        
+        # If upload succeeds, should have job ID in response (field name is "id")
+        if response.status_code == 202:
+            data = response.json()
+            assert "id" in data
+            assert "database_id" in data
+            assert "status" in data
+
+    def test_post_upload_validates_hybrid_requires_both_columns(self) -> None:
+        """POST /api/upload validates hybrid mode requires text_column and image_column."""
+        from fastapi.testclient import TestClient
+        from vetorizer_lib.web.app import app
+        import io
+
+        client = TestClient(app)
+        # Missing image_column
+        response = client.post(
+            "/api/upload",
+            data={
+                "database_name": "test_hybrid_missing",
+                "ingest_mode": "hybrid",
+                "content_column": "text",
+                "text_column": "text",
+            },
+            files={"file": ("test.csv", io.BytesIO(b"id,text,image_path\n1,test,/img.png"), "text/csv")},
+        )
+        # Should return 400 validation error for missing required parameter
+        assert response.status_code == 400

@@ -30,9 +30,15 @@ class ImageEmbedder:
 
     DEFAULT_MODEL = "openai/clip-vit-base-patch32"
 
-    def __init__(self, model_name: str | None = None) -> None:
-        """Initialize the image embedder with specified CLIP model."""
+    def __init__(self, model_name: str | None = None, normalize: bool = True) -> None:
+        """Initialize the image embedder with specified CLIP model.
+        
+        Args:
+            model_name: HuggingFace CLIP model identifier. Uses default if None.
+            normalize: Whether to normalize embeddings to unit length (L2 norm).
+        """
         self._model_name = model_name or self.DEFAULT_MODEL
+        self._normalize = normalize
         try:
             self._model = CLIPModel.from_pretrained(self._model_name)
             self._processor = CLIPProcessor.from_pretrained(self._model_name)
@@ -83,8 +89,9 @@ class ImageEmbedder:
 
         with torch.no_grad():
             text_features = self._model.get_text_features(**inputs)
-            # Normalize for cosine similarity
-            text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+            # Normalize for cosine similarity if enabled
+            if self._normalize:
+                text_features = text_features / text_features.norm(dim=-1, keepdim=True)
 
         return text_features.tolist()
 
@@ -124,7 +131,8 @@ class ImageEmbedder:
 
         with torch.no_grad():
             image_features = self._model.get_image_features(**inputs)
-            # Normalize for cosine similarity
-            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+            # Normalize for cosine similarity if enabled
+            if self._normalize:
+                image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 
         return image_features.tolist()

@@ -15,15 +15,20 @@ class ContentType(str, Enum):
     Attributes:
         TEXT: Text content.
         IMAGE: Image file path.
+        HYBRID: Both text content and image file path.
 
     Example:
         >>> content_type = ContentType.TEXT
         >>> print(content_type.value)
         text
+        >>> content_type_hybrid = ContentType.HYBRID
+        >>> print(content_type_hybrid.value)
+        hybrid
     """
 
     TEXT = "text"
     IMAGE = "image"
+    HYBRID = "hybrid"
 
 
 @dataclass

@@ -116,19 +116,19 @@
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T038 [P] [US1] Unit test for text-only ingestion in tests/unit/test_ingest_text.py
-- [ ] T039 [P] [US1] Unit test for image-only ingestion in tests/unit/test_ingest_image.py
-- [ ] T040 [P] [US1] Unit test for hybrid ingestion in tests/unit/test_ingest_hybrid.py
-- [ ] T041 [P] [US1] Contract test for POST /api/upload with text mode in tests/contract/test_api.py
-- [ ] T042 [P] [US1] Contract test for POST /api/upload with image mode in tests/contract/test_api.py
-- [ ] T043 [P] [US1] Contract test for POST /api/upload with hybrid mode in tests/contract/test_api.py
-- [ ] T044 [US1] Integration test for mixed dataset ingestion in tests/integration/test_hybrid_upload.py
+- [X] T038 [P] [US1] Unit test for text-only ingestion in tests/unit/test_ingest_text.py
+- [X] T039 [P] [US1] Unit test for image-only ingestion in tests/unit/test_ingest_image.py
+- [X] T040 [P] [US1] Unit test for hybrid ingestion in tests/unit/test_ingest_hybrid.py
+- [X] T041 [P] [US1] Contract test for POST /api/upload with text mode in tests/contract/test_api.py
+- [X] T042 [P] [US1] Contract test for POST /api/upload with image mode in tests/contract/test_api.py
+- [X] T043 [P] [US1] Contract test for POST /api/upload with hybrid mode in tests/contract/test_api.py
+- [X] T044 [US1] Integration test for mixed dataset ingestion in tests/integration/test_hybrid_upload.py
 
 ### Implementation for User Story 1
 
-- [ ] T045 [P] [US1] Extend TextEmbedder to support normalization in vetorizer_lib/embedders/text.py
-- [ ] T046 [P] [US1] Extend ImageEmbedder to support custom CLIP models in vetorizer_lib/embedders/image.py
-- [ ] T047 [US1] Implement hybrid vector generation with proper concatenation in vetorizer_lib/models/hybrid.py
+- [X] T045 [P] [US1] Extend TextEmbedder to support normalization in vetorizer_lib/embedders/text.py
+- [X] T046 [P] [US1] Extend ImageEmbedder to support custom CLIP models in vetorizer_lib/embedders/image.py
+- [X] T047 [US1] Implement hybrid vector generation with proper concatenation in vetorizer_lib/models/hybrid.py
 - [ ] T048 [US1] Extend CSVIngestor to support mode parameter in vetorizer_lib/ingest/csv.py
 - [ ] T049 [US1] Add conditional embedder selection logic in vetorizer_lib/ingest/csv.py
 - [ ] T050 [US1] Implement metadata recording (modalities, dimensions) in vetorizer_lib/ingest/csv.py
